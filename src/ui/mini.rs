@@ -907,7 +907,7 @@ fn cue(app: &mut App, now: f64) -> Option<Cue> {
 
 pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
     const CANVAS_W: f32 = 640.0;
-    const CANVAS_H: f32 = 168.0;
+    const CANVAS_H: f32 = 190.0;
 
     let expanded_key = egui::Id::unique("whis-notch-expanded");
     let tucked_key = egui::Id::unique("whis-notch-tucked");
@@ -960,7 +960,7 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
     let (target_w, target_h) = if tucked {
         if peek_hovered { (188.0, 26.0) } else { (176.0, 24.0) }
     } else if expanded {
-        (440.0, 158.0)
+        (440.0, 180.0)
     } else {
         (compact_w, 38.0)
     };
@@ -1021,13 +1021,13 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
             vec2(cur_w, cur_h),
         );
         let mint = Color32::from_rgb(102, 235, 203);
-        let bg = if tucked { Color32::from_rgb(6, 9, 14) } else { Color32::from_rgb(5, 7, 10) };
+        let bg = Color32::from_rgb(3, 5, 8);
         let rim = if tucked {
             Color32::from_rgba_unmultiplied(102, 235, 203, if peek_hovered { 110 } else { 55 })
         } else {
             Color32::from_rgba_unmultiplied(255, 255, 255, 22)
         };
-        let bottom_r: u8 = if tucked { 13 } else if expanded { 24 } else { 19 };
+        let bottom_r: u8 = if tucked { 13 } else if expanded { 30 } else { 19 };
         let radius = egui::CornerRadius { nw: 0, ne: 0, sw: bottom_r, se: bottom_r };
 
         clip_notch_region(ui.ctx(), pill, bounds, animating);
@@ -1104,11 +1104,8 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
                 ctx.data_mut(|d| d.insert_temp(peek_hover_key, hit.hovered()));
 
                 let eq_pos = pos2(pill.left() + 18.0, pill.center().y);
-                if playing {
-                    draw_eq(ui, eq_pos, 3, 6.0);
-                } else {
-                    icon_at(ui, eq_pos, icon::MUSIC, 11.0, mint);
-                }
+                ui.painter().circle_filled(eq_pos, 8.0, Color32::from_rgb(22, 66, 61));
+                icon_at(ui, eq_pos, icon::MUSIC, 10.0, mint);
                 let chev_pos = pos2(pill.right() - 16.0, pill.center().y);
                 icon_at(ui, chev_pos, icon::CHEVRON_DOWN, 13.0, mint);
 
@@ -1134,7 +1131,10 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
                     let thumb = Rect::from_center_size(pos2(row.left() + 12.0, row.center().y), vec2(22.0, 22.0));
                     match &track {
                         Some(tr) => paint_cover(ui, thumb, &tr.thumbs, 7.0, 1.0),
-                        None => icon_at(ui, thumb.center(), icon::MUSIC, 14.0, mint),
+                        None => {
+                            ui.painter().rect_filled(thumb, 7.0, Color32::from_rgb(22, 66, 61));
+                            icon_at(ui, thumb.center(), icon::MUSIC, 14.0, mint);
+                        }
                     }
                     if playing {
                         ui.painter().rect_stroke(thumb, 7.0, egui::Stroke::new(1.0, mint.gamma_multiply(0.55)), egui::StrokeKind::Outside);
@@ -1184,7 +1184,7 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
             // Expanded Dynamic Island Media Card
             egui::Frame::new().inner_margin(egui::Margin::symmetric(16, 12)).show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    let art_size = 52.0;
+                    let art_size = 62.0;
                     let (art_rect, _) = ui.allocate_exact_size(vec2(art_size, art_size), Sense::hover());
                     match &track {
                         Some(tr) => paint_cover(ui, art_rect, &tr.thumbs, 12.0, 1.0),
@@ -1194,7 +1194,8 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
                         }
                     }
                     ui.add_space(10.0);
-                    let info_w = (ui.available_width() - 88.0).max(60.0);
+                    // Reserve all three action buttons and their spacing before laying out text.
+                    let info_w = (ui.available_width() - 100.0).max(60.0);
                     ui.allocate_ui(vec2(info_w, art_size), |ui| {
                         ui.vertical(|ui| {
                             let (title, artist) = match &track {
@@ -1241,14 +1242,15 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
                 });
 
                 // Interactive seekable progress bar + timestamps
-                ui.add_space(10.0);
+                ui.add_space(8.0);
                 let pos_s = app.audio.status.position_smooth().as_secs_f32();
                 let dur_s = app.audio.status.duration().map(|d| d.as_secs_f32())
                     .or_else(|| track.as_ref().and_then(|tr| tr.duration).map(|d| d as f32))
                     .unwrap_or(0.0);
                 ui.horizontal(|ui| {
                     ui.label(egui::RichText::new(fmt_time(pos_s as u32)).size(10.5).color(Color32::from_rgb(148, 163, 184)));
-                    let bar_w = (ui.available_width() - 38.0).max(40.0);
+                    // Leave room for long durations (e.g. 100:00), not just 0:00.
+                    let bar_w = (ui.available_width() - 55.0).max(40.0);
                     let (hit_rect, seek_hit) = ui.allocate_exact_size(vec2(bar_w, 14.0), Sense::click_and_drag());
                     let prog_rect = Rect::from_center_size(hit_rect.center(), vec2(bar_w, 4.0));
                     ui.painter().rect_filled(prog_rect, 2.0, Color32::from_rgba_unmultiplied(255, 255, 255, 24));
