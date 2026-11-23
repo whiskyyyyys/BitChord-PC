@@ -17,7 +17,10 @@ jobs:
           path: app
           persist-credentials: false
       - name: Apply Whis customization
-        run: git -C app apply --binary ../customization/whis.patch
+        shell: pwsh
+        run: |
+          [IO.File]::WriteAllBytes("$env:RUNNER_TEMP/whis.zip", [Convert]::FromBase64String((Get-Content customization/whis-overlay.zip.b64 -Raw)))
+          Expand-Archive "$env:RUNNER_TEMP/whis.zip" app -Force
       - uses: dtolnay/rust-toolchain@stable
       - working-directory: app
         run: cargo build --locked --release
