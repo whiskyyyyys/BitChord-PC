@@ -8,12 +8,13 @@ Open [Windows builds](https://github.com/whiskyyyyys/BitChord-PC/actions/workflo
 
 ## Source and build
 
-The workflow checks out [the exact upstream source](https://github.com/jackychan4891/BitChord-PC-Official/tree/b68871126b8262a6d71da5dc48f748d7e13d075f) and applies [the Whis changes](customization/whis.patch). To reproduce on Windows with Git, Rust stable and MSVC Build Tools, run from this repository:
+The workflow checks out [the exact upstream source](https://github.com/jackychan4891/BitChord-PC-Official/tree/b68871126b8262a6d71da5dc48f748d7e13d075f) and extracts the [Whis source and icon overlay](customization/whis-overlay.zip.b64). To reproduce on Windows with Git, Rust stable and MSVC Build Tools, run from this repository:
 
 ```powershell
 git clone https://github.com/jackychan4891/BitChord-PC-Official.git app
 git -C app checkout b68871126b8262a6d71da5dc48f748d7e13d075f
-git -C app apply --binary ../customization/whis.patch
+[IO.File]::WriteAllBytes("$env:TEMP/whis-overlay.zip", [Convert]::FromBase64String((Get-Content customization/whis-overlay.zip.b64 -Raw)))
+Expand-Archive "$env:TEMP/whis-overlay.zip" app -Force
 Set-Location app
 cargo build --locked --release
 ```
