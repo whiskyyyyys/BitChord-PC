@@ -1,10 +1,20 @@
 # BitChord x Whis
 
-Windows x64 portable edition of [BitChord PC](https://github.com/jackychan4891/BitChord-PC-Official), with a W icon, midnight and mint colors, and Discord Rich Presence recovery during playback.
+A portable YouTube Music desktop player for Windows x64, based on [BitChord PC](https://github.com/jackychan4891/BitChord-PC-Official). The Whis edition pairs a midnight-blue interface with mint accents and a W app icon.
 
-## Download
+**[Download for Windows x64](https://github.com/whiskyyyyys/BitChord-PC/releases/download/v2.0.1-whis.1/BitChord-x-Whis-2.0.1-Windows-x64.zip)** · [Release notes](https://github.com/whiskyyyyys/BitChord-PC/releases/latest)
 
-Open [Windows builds](https://github.com/whiskyyyyys/BitChord-PC/actions/workflows/custom-windows.yml), select a successful run, and download **BitChord-x-Whis-Windows-x64** from Artifacts while signed in to GitHub. Extract the whole ZIP and launch `bitchord.exe`. For Rich Presence, open Discord desktop and enable Discord under BitChord Settings → Connections.
+## Features
+
+- **Music and lyrics** — browse your library, play tracks, and follow synced lyrics when available.
+- **Discord Rich Presence** — share the current song and artist on your profile. While music plays, BitChord periodically refreshes the card so it can recover after Discord restarts.
+- **Portable Windows build** — extract the ZIP to a folder and launch the app. No installer or Python setup required.
+
+## Getting started
+
+1. Download the Windows x64 ZIP under **Assets** on the release page.
+2. Extract the entire ZIP and open `bitchord.exe`. Keep the accompanying files together.
+3. For Rich Presence, open Discord desktop, enable activity sharing in Discord, then turn on **Settings → Connections → Discord** in BitChord and play a track.
 
 ## Source and build
 
