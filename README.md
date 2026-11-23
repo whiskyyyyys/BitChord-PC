@@ -29,10 +29,14 @@ A portable YouTube Music desktop player for Windows x64, rebuilt from [BitChord 
 
 ## Getting started
 
-1. Download `BitChord-x-Whis-Windows-x64.zip` from **[Releases](https://github.com/whiskyyyyys/BitChord-PC/releases/latest)**.
-2. Extract the entire ZIP into one folder (keep `bitchord.exe`, `WebView2Loader.dll`, and `portable.txt` together).
-3. Run `bitchord.exe`.
-4. For Rich Presence, open Discord desktop, enable activity sharing in Discord, then turn on **Settings → Connections → Discord** in BitChord.
+Download the build for your OS from **[Releases](https://github.com/whiskyyyyys/BitChord-PC/releases/latest)**:
+
+- **Windows (Installer)**: download and run `BitChord-x-Whis-2.0.1-Windows-x64-Setup.exe`.
+- **Windows (Portable)**: download `BitChord-x-Whis-2.0.1-Windows-x64-Portable.zip`, extract all files into one folder, and run `bitchord.exe`.
+- **macOS**: open `BitChord-x-Whis-2.0.1-macOS.dmg` and drag `bitchord.app` to **Applications** (first launch: right-click → **Open**).
+- **Linux x64**: extract `BitChord-x-Whis-2.0.1-Linux-x64.tar.gz` and run `./install.sh` (or run `./bitchord` directly).
+
+For Discord Rich Presence, open Discord desktop, enable activity sharing in Discord, then turn on **Settings → Connections → Discord** in BitChord.
 
 ## Build from source
 

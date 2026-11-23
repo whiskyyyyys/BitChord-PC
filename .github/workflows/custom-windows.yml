@@ -1,4 +1,4 @@
-name: BitChord x Whis Windows x64
+name: BitChord x Whis Release
 on:
   workflow_dispatch:
   push:
@@ -6,20 +6,29 @@ on:
 permissions:
   contents: write
 jobs:
-  build:
+  windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo build --locked --release
-      - name: Package portable app
+      - name: Package portable ZIP and Setup .exe
         shell: pwsh
         run: |
           $dll = Get-ChildItem "$env:USERPROFILE/.cargo/registry/src/*/webview2-com-sys-*/x64/WebView2Loader.dll" | Select-Object -First 1
           if (!$dll) { throw "Missing x64 WebView2Loader.dll" }
-          New-Item -ItemType Directory -Force portable | Out-Null
+          Copy-Item $dll.FullName target/release/WebView2Loader.dll
+          New-Item -ItemType Directory -Force portable, dist | Out-Null
           Copy-Item target/release/bitchord.exe, installer/portable.txt, LICENSE, README.md portable
           Copy-Item $dll.FullName portable
+          Compress-Archive -Path portable/* -DestinationPath dist/BitChord-x-Whis-2.0.1-Windows-x64-Portable.zip -Force
+
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $iscc)) {
+            choco install innosetup -y --no-progress
+          }
+          & $iscc installer/bitchord.iss
+          Copy-Item installer/Output/bitchord-setup-2.0.1.exe dist/BitChord-x-Whis-2.0.1-Windows-x64-Setup.exe
       - name: Verify mint W icon embedded in the Windows executable
         shell: pwsh
         run: |
@@ -32,18 +41,67 @@ jobs:
           if($mint -lt 20 -or $dark -lt 5){throw "Embedded W icon check failed"}
       - uses: actions/upload-artifact@v4
         with:
-          name: BitChord-x-Whis-Windows-x64
-          path: portable/
-      - name: Create portable ZIP and publish GitHub Release
+          name: windows-assets
+          path: dist/*
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --locked --release
+      - name: Package macOS .dmg
+        run: |
+          mkdir -p dist out
+          sh macos/bundle.sh target/release/bitchord 2.0.1 out
+          hdiutil create -volname "BitChord x Whis" -srcfolder out/bitchord.app -ov -format UDZO dist/BitChord-x-Whis-2.0.1-macOS.dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-assets
+          path: dist/*
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev libasound2-dev libssl-dev pkg-config
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --locked --release
+      - name: Package Linux .tar.gz
+        run: |
+          mkdir -p stage/bitchord-linux dist
+          cp target/release/bitchord stage/bitchord-linux/bitchord
+          cp linux/install.sh linux/bitchord.desktop linux/portable.txt LICENSE README.md stage/bitchord-linux/
+          cp assets/icon/icon.png stage/bitchord-linux/bitchord.png
+          chmod +x stage/bitchord-linux/bitchord stage/bitchord-linux/install.sh
+          tar -czf dist/BitChord-x-Whis-2.0.1-Linux-x64.tar.gz -C stage bitchord-linux
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-assets
+          path: dist/*
+
+  release:
+    needs: [windows, macos, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        shell: pwsh
         run: |
-          $zip = "BitChord-x-Whis-Windows-x64.zip"
-          Compress-Archive -Path portable/* -DestinationPath $zip -Force
-          $tag = "v2.0.1-whis.$env:GITHUB_RUN_NUMBER"
-          gh release create $tag $zip `
-            --repo "$env:GITHUB_REPOSITORY" `
-            --target "$env:GITHUB_SHA" `
-            --title "BitChord x Whis 2.0.1 (Build $env:GITHUB_RUN_NUMBER)" `
-            --notes "Portable Windows x64 build with Whis midnight-blue & mint theme, mint W icon, and Coucou-style top-docked Dynamic Island notch. Extract the ZIP and run **bitchord.exe**."
+          tag="v2.0.1-whis.${GITHUB_RUN_NUMBER}"
+          gh release create "$tag" artifacts/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "BitChord x Whis 2.0.1 (Build ${GITHUB_RUN_NUMBER})" \
+            --notes "Cross-platform rebuild with Whis midnight-blue & mint theme, mint W icon, and Coucou-style top-docked Dynamic Island notch:
+- **Windows x64 Installer**: \`BitChord-x-Whis-2.0.1-Windows-x64-Setup.exe\`
+- **Windows x64 Portable**: \`BitChord-x-Whis-2.0.1-Windows-x64-Portable.zip\`
+- **macOS**: \`BitChord-x-Whis-2.0.1-macOS.dmg\`
+- **Linux x64**: \`BitChord-x-Whis-2.0.1-Linux-x64.tar.gz\` (run \`./install.sh\` after extracting)"
