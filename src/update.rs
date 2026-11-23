@@ -53,7 +53,10 @@ pub struct Updater {
 }
 
 pub fn current_version() -> String {
-    std::env::var("YTM_UPDATE_AS").unwrap_or_else(|_| env!("CARGO_PKG_VERSION").to_owned())
+    std::env::var("YTM_UPDATE_AS").unwrap_or_else(|_| match option_env!("GITHUB_RUN_NUMBER") {
+        Some(run) if !run.is_empty() => format!("{}-whis.{run}", env!("CARGO_PKG_VERSION")),
+        _ => env!("CARGO_PKG_VERSION").to_owned(),
+    })
 }
 
 /// Whether this copy was installed by the installer (which leaves its uninstaller
@@ -107,7 +110,9 @@ pub fn portable_dir() -> Option<PathBuf> {
         return app.parent().map(Path::to_path_buf);
     }
     let dir = exe.parent()?.to_path_buf();
-    dir.join("portable.txt").exists().then_some(dir)
+    let is_portable = dir.join("portable.txt").exists()
+        || (cfg!(all(windows, not(debug_assertions))) && !dir.join("unins000.exe").exists());
+    is_portable.then_some(dir)
 }
 
 /// Remove the exe a portable update replaced (it was still running then).
@@ -123,10 +128,8 @@ pub fn clean_portable() {
 pub fn newer(a: &str, b: &str) -> bool {
     let parse = |v: &str| {
         v.trim_start_matches('v')
-            .split('-')
-            .next()
-            .unwrap_or("")
-            .split('.')
+            .split(|c: char| !c.is_ascii_digit())
+            .filter(|s| !s.is_empty())
             .map(|p| p.parse::<u64>().unwrap_or(0))
             .collect::<Vec<_>>()
     };

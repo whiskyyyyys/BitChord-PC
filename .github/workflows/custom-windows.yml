@@ -1,4 +1,4 @@
-name: WhisMuno Release
+name: WhisMuno Windows Release
 on:
   workflow_dispatch:
   push:
@@ -12,6 +12,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo build --locked --release
+        env:
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
       - name: Package portable ZIP and Setup .exe
         shell: pwsh
         run: |
@@ -21,14 +23,14 @@ jobs:
           New-Item -ItemType Directory -Force portable, dist | Out-Null
           Copy-Item target/release/bitchord.exe, installer/portable.txt, LICENSE, README.md portable
           Copy-Item $dll.FullName portable
-          Compress-Archive -Path portable/* -DestinationPath dist/WhisMuno-2.0.4-Windows-x64-Portable.zip -Force
+          Compress-Archive -Path portable/* -DestinationPath dist/WhisMuno-2.0.5-Windows-x64-Portable.zip -Force
 
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
           if (!(Test-Path $iscc)) {
             choco install innosetup -y --no-progress
           }
           & $iscc installer/bitchord.iss
-          Copy-Item installer/Output/bitchord-setup-2.0.4.exe dist/WhisMuno-2.0.4-Windows-x64-Setup.exe
+          Copy-Item installer/Output/bitchord-setup-2.0.5.exe dist/WhisMuno-2.0.5-Windows-x64-Setup.exe
       - name: Verify mint W icon embedded in the Windows executable
         shell: pwsh
         run: |
@@ -43,69 +45,19 @@ jobs:
         with:
           name: windows-assets
           path: dist/*
-
-  macos:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo build --locked --release
-      - name: Package macOS .dmg
-        run: |
-          mkdir -p dist out
-          sh macos/bundle.sh target/release/bitchord 2.0.4 out
-          hdiutil create -volname "WhisMuno" -srcfolder out/bitchord.app -ov -format UDZO dist/WhisMuno-2.0.4-macOS.dmg
-      - uses: actions/upload-artifact@v4
-        with:
-          name: macos-assets
-          path: dist/*
-
-  linux:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Linux dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev libasound2-dev libssl-dev pkg-config
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo build --locked --release
-      - name: Package Linux .tar.gz
-        run: |
-          mkdir -p stage/bitchord-linux dist
-          cp target/release/bitchord stage/bitchord-linux/bitchord
-          cp linux/install.sh linux/bitchord.desktop linux/portable.txt LICENSE README.md stage/bitchord-linux/
-          cp assets/icon/icon.png stage/bitchord-linux/bitchord.png
-          chmod +x stage/bitchord-linux/bitchord stage/bitchord-linux/install.sh
-          tar -czf dist/WhisMuno-2.0.4-Linux-x64.tar.gz -C stage bitchord-linux
-      - uses: actions/upload-artifact@v4
-        with:
-          name: linux-assets
-          path: dist/*
-
-  release:
-    needs: [windows, macos, linux]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-          merge-multiple: true
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+        shell: pwsh
         run: |
-          tag="v2.0.4-whis.${GITHUB_RUN_NUMBER}"
-          cat > notes.md <<'EOF'
-          **WhisMuno** (**Whis** **Mu**sic **No**tch) cross-platform release with midnight-blue & mint theme, bold W icon, persistent Discord Rich Presence, and smooth Win32-clipped Dynamic Island notch with hide/show tuck bar:
-          - **Windows x64 Installer**: `WhisMuno-2.0.4-Windows-x64-Setup.exe`
-          - **Windows x64 Portable**: `WhisMuno-2.0.4-Windows-x64-Portable.zip`
-          - **macOS**: `WhisMuno-2.0.4-macOS.dmg`
-          - **Linux x64**: `WhisMuno-2.0.4-Linux-x64.tar.gz` (run `./install.sh` after extracting)
-          EOF
-          sed -i 's/^          //' notes.md
-          gh release create "$tag" artifacts/* \
-            --repo "$GITHUB_REPOSITORY" \
-            --target "$GITHUB_SHA" \
-            --title "WhisMuno 2.0.4 (Build ${GITHUB_RUN_NUMBER})" \
-            --notes-file notes.md
+          $tag = "v2.0.5-whis.$env:GITHUB_RUN_NUMBER"
+          $notes = @"
+          **WhisMuno** (**Whis** **Mu**sic **No**tch) for Windows x64 — midnight-blue & mint UI, bold W icon, persistent Discord Rich Presence, smooth Win32-clipped Dynamic Island notch with tuck/show bar, and build-aware mandatory auto-updater:
+          - **Windows x64 Installer**: ``WhisMuno-2.0.5-Windows-x64-Setup.exe``
+          - **Windows x64 Portable**: ``WhisMuno-2.0.5-Windows-x64-Portable.zip``
+          "@
+          gh release create $tag dist/* `
+            --repo "$env:GITHUB_REPOSITORY" `
+            --target "$env:GITHUB_SHA" `
+            --title "WhisMuno 2.0.5 (Build $env:GITHUB_RUN_NUMBER)" `
+            --notes $notes

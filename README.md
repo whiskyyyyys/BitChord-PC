@@ -1,8 +1,8 @@
 # WhisMuno
 
-**Whis** **Mu**sic **No**tch — a modern YouTube Music desktop player for Windows, macOS, and Linux, featuring a midnight-blue & mint interface, glowing **W** icon, persistent Discord Rich Presence, and a smooth top-docked Dynamic Island lyrics notch.
+**Whis** **Mu**sic **No**tch — a modern YouTube Music desktop player for Windows x64, featuring a midnight-blue & mint interface, glowing **W** icon, persistent Discord Rich Presence, mandatory auto-updater, and a smooth top-docked Dynamic Island lyrics notch.
 
-**[Download Latest Release](https://github.com/whiskyyyyys/BitChord-PC/releases/latest)** · [All Releases](https://github.com/whiskyyyyys/BitChord-PC/releases) · [Actions Builds](https://github.com/whiskyyyyys/BitChord-PC/actions)
+**[Download Latest Release (Windows x64)](https://github.com/whiskyyyyys/BitChord-PC/releases/latest)** · [All Releases](https://github.com/whiskyyyyys/BitChord-PC/releases) · [Actions Builds](https://github.com/whiskyyyyys/BitChord-PC/actions)
 
 ## Screenshots
 
@@ -25,16 +25,14 @@
   - **Expanded mode** (click the notch): album artwork, track & artist info, synced lyric line, seekable progress bar, **Previous / Play-Pause / Next** controls, volume slider, Tuck (`⌃`), Collapse (`−`), and Turn off (`×`).
 - **Music and lyrics** — browse your library, play tracks, and follow word/line-synced lyrics when available.
 - **Discord Rich Presence** — displays *"Listening to WhisMuno"* with the current song and artist on your profile (including paused status when playback pauses) and recovers automatically if Discord restarts.
-- **Portable & Installer builds** — available as Windows `.exe` installer, Windows `.zip` portable, macOS `.dmg`, and Linux `.tar.gz`.
+- **Automatic Mandatory Updates** — checks **[WhisMuno Releases](https://github.com/whiskyyyyys/BitChord-PC/releases/latest)** automatically every 60 seconds and prompts to update & restart when a newer build is released.
 
-## Getting started
+## Getting started (Windows x64)
 
-Download the build for your OS from **[Releases](https://github.com/whiskyyyyys/BitChord-PC/releases/latest)**:
+Download from **[Releases](https://github.com/whiskyyyyys/BitChord-PC/releases/latest)**:
 
-- **Windows (Installer)**: download and run `WhisMuno-2.0.4-Windows-x64-Setup.exe`.
-- **Windows (Portable)**: download `WhisMuno-2.0.4-Windows-x64-Portable.zip`, extract all files into one folder, and run `bitchord.exe`.
-- **macOS**: open `WhisMuno-2.0.4-macOS.dmg` and drag `bitchord.app` to **Applications** (first launch: right-click → **Open**).
-- **Linux x64**: extract `WhisMuno-2.0.4-Linux-x64.tar.gz` and run `./install.sh` (or run `./bitchord` directly).
+- **Windows Installer (`.exe`)**: download and run `WhisMuno-2.0.5-Windows-x64-Setup.exe`.
+- **Windows Portable (`.zip`)**: download `WhisMuno-2.0.5-Windows-x64-Portable.zip`, extract all files into one folder, and run `bitchord.exe`.
 
 For Discord Rich Presence, open Discord desktop, enable activity sharing in Discord, then turn on **Settings → Connections → Discord** in WhisMuno.
 
@@ -46,6 +44,6 @@ Requirements on Windows: **Rust stable** and **MSVC Build Tools**.
 cargo build --locked --release
 ```
 
-Every push to `main` triggers `.github/workflows/custom-windows.yml`, which compiles WhisMuno for Windows, macOS, and Linux and publishes all packages to **GitHub Releases**.
+Every push to `main` triggers `.github/workflows/custom-windows.yml`, which compiles WhisMuno for Windows x64 and publishes both the Setup `.exe` and Portable `.zip` to **GitHub Releases**.
 
 Based on [BitChord PC](https://github.com/jackychan4891/BitChord-PC-Official) under [GPL-3.0-only](LICENSE). WhisMuno modifications are distributed under the same license.
