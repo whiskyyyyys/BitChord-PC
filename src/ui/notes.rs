@@ -181,11 +181,17 @@ pub struct NotesDialog {
 }
 
 pub fn dialog(app: &mut App, ctx: &egui::Context) {
+    // Force-open the mandatory update modal as soon as a newer Whis release is downloaded.
+    if let Some(crate::update::State::Ready { version, .. }) = app.updater.as_ref().map(|u| u.state()) {
+        if !app.notes_dialog.as_ref().is_some_and(|d| d.ready && d.version == version) {
+            app.notes_dialog = Some(NotesDialog { version, ready: true });
+        }
+    }
     let Some(d) = app.notes_dialog.clone() else { return };
     let body = app.updater.as_ref().and_then(|u| u.notes(&d.version));
-    let (mut close, mut restart) = (false, false);
+    let (mut close, mut restart, mut exit_app) = (false, false, false);
     let accent = app.accent_color();
-    let modal = egui::Modal::new(egui::Id::unique("release-notes")).frame(surface()).backdrop_color(theme::shade(0.55)).show(ctx, |ui| {
+    let modal = egui::Modal::new(egui::Id::unique("release-notes")).frame(surface()).backdrop_color(theme::shade(0.72)).show(ctx, |ui| {
         let w = 540.0_f32.min(ctx.content_rect().width() - 48.0);
         ui.set_width(w);
         ui.spacing_mut().item_spacing = vec2(0.0, 0.0);
@@ -193,16 +199,16 @@ pub fn dialog(app: &mut App, ctx: &egui::Context) {
             ui.horizontal(|ui| {
                 widgets::icon_at(ui, ui.cursor().min + vec2(8.0, 8.0), icon::SPARKLES, 15.0, accent);
                 ui.add_space(22.0);
-                let label = if d.ready { "UPDATE READY" } else { "WHAT'S NEW" };
+                let label = if d.ready { "UPDATE REQUIRED" } else { "WHAT'S NEW" };
                 let mut j = LayoutJob::default();
                 j.append(label, 0.0, TextFormat { font_id: theme::semibold(12.0), color: theme::text_dim(), extra_letter_spacing: 1.0, ..Default::default() });
                 ui.label(j);
             });
             ui.add_space(8.0);
-            ui.label(egui::RichText::new(format!("BitChord {}", d.version)).font(theme::bold(26.0)).color(theme::text()));
+            ui.label(egui::RichText::new(format!("BitChord x Whis {}", d.version)).font(theme::bold(26.0)).color(theme::text()));
             ui.add_space(6.0);
             let sub = if d.ready {
-                format!("You're on {}. It's downloaded and installs when you close the app.", crate::update::current_version())
+                format!("You're on {}. Please update now to continue using BitChord x Whis.", crate::update::current_version())
             } else {
                 "The version you're running.".to_owned()
             };
@@ -231,16 +237,19 @@ pub fn dialog(app: &mut App, ctx: &egui::Context) {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 ui.spacing_mut().item_spacing.x = 10.0;
                 if d.ready {
-                    restart = widgets::pill(ui, "Restart to update", None, true).clicked();
-                    close = widgets::pill(ui, "Later", None, false).clicked();
+                    restart = widgets::pill(ui, "Update & Restart", None, true).clicked();
+                    exit_app = widgets::pill(ui, "Exit App", None, false).clicked();
                 } else {
                     close = widgets::pill(ui, "Close", None, true).clicked();
                 }
             });
         });
     });
-    if close || modal.should_close() {
+    if !d.ready && (close || modal.should_close()) {
         app.notes_dialog = None;
+    }
+    if exit_app {
+        app.quit(ctx);
     }
     if restart {
         app.notes_dialog = None;

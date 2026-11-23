@@ -23,10 +23,10 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-const LATEST: &str = "https://api.github.com/repos/grapedjuice/ytm-rs/releases/latest";
-const ALL_RELEASES: &str = "https://api.github.com/repos/grapedjuice/ytm-rs/releases";
-const BY_TAG: &str = "https://api.github.com/repos/grapedjuice/ytm-rs/releases/tags/v";
-pub const RELEASES: &str = "https://github.com/grapedjuice/ytm-rs/releases";
+const LATEST: &str = "https://api.github.com/repos/whiskyyyyys/BitChord-PC/releases/latest";
+const ALL_RELEASES: &str = "https://api.github.com/repos/whiskyyyyys/BitChord-PC/releases";
+const BY_TAG: &str = "https://api.github.com/repos/whiskyyyyys/BitChord-PC/releases/tags/v";
+pub const RELEASES: &str = "https://github.com/whiskyyyyys/BitChord-PC/releases";
 
 /// Release notes by version: `None` while fetching or when there are none.
 type Notes = Arc<Mutex<std::collections::HashMap<String, Option<String>>>>;
@@ -76,21 +76,18 @@ fn bundle_of(exe: &Path) -> Option<&Path> {
     exe.ancestors().nth(3).filter(|a| a.extension().is_some_and(|x| x == "app"))
 }
 
-/// The release asset this copy updates from.
-fn asset_name(version: &str) -> String {
+/// The release asset suffix this copy updates from.
+fn asset_suffix() -> &'static str {
     let portable = portable_dir().is_some();
-    let arch = std::env::consts::ARCH;
     if cfg!(target_os = "linux") {
-        let kind = if portable { "portable-" } else { "" };
-        return format!("ytm-rs-{kind}{version}-linux-{arch}.tar.gz");
-    }
-    // ARM64 Windows builds have their own assets; x64 keeps the original names.
-    let (suffix, setup) = if cfg!(target_os = "macos") {
-        (format!("-macos-{arch}"), "dmg")
+        "Linux-x64.tar.gz"
+    } else if cfg!(target_os = "macos") {
+        "macOS.dmg"
+    } else if portable {
+        "Windows-x64-Portable.zip"
     } else {
-        (if cfg!(target_arch = "aarch64") { "-arm64" } else { "" }.to_owned(), "exe")
-    };
-    if portable { format!("ytm-rs-portable-{version}{suffix}.zip") } else { format!("ytm-rs-setup-{version}{suffix}.{setup}") }
+        "Windows-x64-Setup.exe"
+    }
 }
 
 /// The portable build's folder: the download ships a `portable.txt` beside the exe
@@ -124,7 +121,15 @@ pub fn clean_portable() {
 
 /// `a` is newer than `b` (dotted numeric versions, a leading "v" ignored).
 pub fn newer(a: &str, b: &str) -> bool {
-    let parse = |v: &str| v.trim_start_matches('v').split('.').map(|p| p.parse::<u64>().unwrap_or(0)).collect::<Vec<_>>();
+    let parse = |v: &str| {
+        v.trim_start_matches('v')
+            .split('-')
+            .next()
+            .unwrap_or("")
+            .split('.')
+            .map(|p| p.parse::<u64>().unwrap_or(0))
+            .collect::<Vec<_>>()
+    };
     let (a, b) = (parse(a), parse(b));
     for i in 0..a.len().max(b.len()) {
         let (x, y) = (a.get(i).copied().unwrap_or(0), b.get(i).copied().unwrap_or(0));
@@ -256,13 +261,17 @@ impl Updater {
         }
         let version = tag.trim_start_matches('v').to_owned();
         let portable = portable_dir().is_some();
-        let want = asset_name(&version);
+        let suffix = asset_suffix();
         // A release published before its installer was built: nothing to install
         // yet, so this isn't an error. The next check picks it up.
-        let Some(asset) = release["assets"].as_array().and_then(|a| a.iter().find(|x| x["name"] == want.as_str())) else {
-            log::info!("update: release {tag} has no {want} yet");
+        let Some(asset) = release["assets"]
+            .as_array()
+            .and_then(|a| a.iter().find(|x| x["name"].as_str().is_some_and(|n| n.ends_with(suffix))))
+        else {
+            log::info!("update: release {tag} has no *{suffix} yet");
             return Ok(State::UpToDate);
         };
+        let want = asset["name"].as_str().unwrap_or(suffix).to_owned();
         let url = asset["browser_download_url"].as_str().ok_or_else(|| anyhow::anyhow!("asset has no URL"))?;
         let size = asset["size"].as_u64().unwrap_or(0);
         std::fs::create_dir_all(&self.dir)?;
@@ -448,9 +457,9 @@ fn open_dmg(dmg: &Path, dir: &Path) -> anyhow::Result<PathBuf> {
     std::fs::create_dir_all(&mnt)?;
     let attached = std::process::Command::new("hdiutil").args(["attach", "-nobrowse", "-readonly", "-noautoopen", "-quiet", "-mountpoint"]).arg(&mnt).arg(dmg).status()?;
     anyhow::ensure!(attached.success(), "couldn't open {}", dmg.display());
-    let copied = std::process::Command::new("ditto").arg(mnt.join("ytm-rs.app")).arg(dir.join("ytm-rs.app")).status();
+    let copied = std::process::Command::new("ditto").arg(mnt.join("bitchord.app")).arg(dir.join("bitchord.app")).status();
     let _ = std::process::Command::new("hdiutil").args(["detach", "-quiet"]).arg(&mnt).status();
-    let exe = dir.join("ytm-rs.app/Contents/MacOS/ytm-rs");
+    let exe = dir.join("bitchord.app/Contents/MacOS/bitchord");
     anyhow::ensure!(copied.is_ok_and(|s| s.success()) && exe.exists(), "couldn't copy the app out of {}", dmg.display());
     Ok(exe)
 }
@@ -476,14 +485,14 @@ fn unzip_exe(zip: &Path, dir: &Path) -> anyhow::Result<PathBuf> {
     }
     let status = cmd.status()?;
     #[cfg(windows)]
-    let exe = dir.join("ytm-rs.exe");
+    let exe = dir.join("bitchord.exe");
     // Everything is in one top-level folder: the binary, or on macOS the app bundle.
     #[cfg(not(windows))]
     let exe = std::fs::read_dir(dir)?
         .flatten()
-        .flat_map(|e| [e.path().join("ytm-rs"), e.path().join("ytm-rs.app/Contents/MacOS/ytm-rs")])
+        .flat_map(|e| [e.path().join("bitchord"), e.path().join("bitchord.app/Contents/MacOS/bitchord")])
         .find(|p| p.is_file())
-        .unwrap_or_else(|| dir.join("ytm-rs"));
+        .unwrap_or_else(|| dir.join("bitchord"));
     anyhow::ensure!(status.success() && exe.exists(), "couldn't unpack {}", zip.display());
     Ok(exe)
 }

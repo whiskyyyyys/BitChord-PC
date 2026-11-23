@@ -5,8 +5,8 @@
 ; ARM64: cargo build --release --target aarch64-pc-windows-msvc, then
 ;   iscc /DArm64 installer\bitchord.iss  ->  bitchord-setup-<version>-arm64.exe
 
-#define AppName "BitChord"
-#define AppVersion "2.0.1"
+#define AppName "BitChord x Whis"
+#define AppVersion "2.0.2"
 #define AppExe "bitchord.exe"
 #ifdef Arm64
   #define Arch "arm64"
