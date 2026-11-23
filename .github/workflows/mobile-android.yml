@@ -1,0 +1,38 @@
+name: Android mobile build
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/mobile-android.yml'
+  pull_request:
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/mobile-android.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build installable debug APK
+        run: bash gradlew :app:assembleProdDebug -Pbitchord.bundleWear=false
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WhisMuno-Android-debug
+          path: mobile/app/build/outputs/apk/prod/debug/*.apk
+          if-no-files-found: error
