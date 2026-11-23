@@ -2,9 +2,11 @@
 
 A portable YouTube Music desktop player for Windows x64, based on [BitChord PC](https://github.com/jackychan4891/BitChord-PC-Official). The Whis edition pairs a midnight-blue interface with mint accents and a W app icon.
 
-**[Download for Windows x64](https://github.com/whiskyyyyys/BitChord-PC/releases/download/v2.0.1-whis.1/BitChord-x-Whis-2.0.1-Windows-x64.zip)** · [Release notes](https://github.com/whiskyyyyys/BitChord-PC/releases/latest)
+**[Download for Windows x64](https://github.com/whiskyyyyys/BitChord-PC/releases/download/v2.0.1-whis.2/BitChord-x-Whis-Notch-Windows-x64.zip)** · [Release notes](https://github.com/whiskyyyyys/BitChord-PC/releases/latest)
 
 ## Features
+
+- **Lyrics notch** — enable Settings → Appearance → Lyrics notch for a compact floating lyric line, previous/next, play/pause, volume and Hide.
 
 - **Music and lyrics** — browse your library, play tracks, and follow synced lyrics when available.
 - **Discord Rich Presence** — share the current song and artist on your profile. While music plays, BitChord periodically refreshes the card so it can recover after Discord restarts.
