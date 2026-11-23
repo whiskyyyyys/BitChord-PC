@@ -4,9 +4,11 @@ A portable YouTube Music desktop player for Windows x64, based on [BitChord PC](
 
 **[Download for Windows x64](https://github.com/whiskyyyyys/BitChord-PC/releases/download/v2.0.1-whis.2/BitChord-x-Whis-Notch-Windows-x64.zip)** · [Release notes](https://github.com/whiskyyyyys/BitChord-PC/releases/latest)
 
+[Windows redesign build](https://github.com/whiskyyyyys/BitChord-PC/actions/runs/45101931335) · Separate Songs, Playlists and Albums in navigation and search, grouped settings, and a mint W icon.
+
 ## Features
 
-- **Lyrics notch** — enable Settings → Appearance → Lyrics notch for a compact floating lyric line, previous/next, play/pause, volume and Hide.
+- **Lyrics notch** — in the redesign build, open **Settings → Notch**. Click the floating lyric pill to expand playback and volume controls, or use **Hide** to dismiss it. The earlier stable release keeps the switch in Settings → Appearance.
 
 - **Music and lyrics** — browse your library, play tracks, and follow synced lyrics when available.
 - **Discord Rich Presence** — share the current song and artist on your profile. While music plays, BitChord periodically refreshes the card so it can recover after Discord restarts.
