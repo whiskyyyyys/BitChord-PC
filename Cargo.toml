@@ -1,10 +1,10 @@
 [package]
 name = "bitchord"
-version = "2.0.3"
+version = "2.0.4"
 edition = "2024"
 license = "GPL-3.0-only"
 repository = "https://github.com/jackychan4891/BitChord-PC-Continued"
-description = "Native BitChord client"
+description = "WhisMuno — Native Music & Lyrics Notch Player"
 
 [dependencies]
 anyhow = "1.0.104"

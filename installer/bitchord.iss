@@ -5,8 +5,8 @@
 ; ARM64: cargo build --release --target aarch64-pc-windows-msvc, then
 ;   iscc /DArm64 installer\bitchord.iss  ->  bitchord-setup-<version>-arm64.exe
 
-#define AppName "BitChord x Whis"
-#define AppVersion "2.0.3"
+#define AppName "WhisMuno"
+#define AppVersion "2.0.4"
 #define AppExe "bitchord.exe"
 #ifdef Arm64
   #define Arch "arm64"
@@ -22,9 +22,9 @@
 AppId={{6E0B7C4A-2D1F-4C8E-9B3A-7F5D1E2A9C40}
 AppName={#AppName}
 AppVersion={#AppVersion}
-AppPublisher=jackychan4891
-AppPublisherURL=https://github.com/jackychan4891/BitChord-PC-Continued
-AppSupportURL=https://github.com/jackychan4891/BitChord-PC-Continued/issues
+AppPublisher=WhisXD
+AppPublisherURL=https://github.com/whiskyyyyys/BitChord-PC
+AppSupportURL=https://github.com/whiskyyyyys/BitChord-PC/issues
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes

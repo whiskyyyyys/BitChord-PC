@@ -205,10 +205,10 @@ pub fn dialog(app: &mut App, ctx: &egui::Context) {
                 ui.label(j);
             });
             ui.add_space(8.0);
-            ui.label(egui::RichText::new(format!("BitChord x Whis {}", d.version)).font(theme::bold(26.0)).color(theme::text()));
+            ui.label(egui::RichText::new(format!("WhisMuno {}", d.version)).font(theme::bold(26.0)).color(theme::text()));
             ui.add_space(6.0);
             let sub = if d.ready {
-                format!("You're on {}. Please update now to continue using BitChord x Whis.", crate::update::current_version())
+                format!("You're on {}. Please update now to continue using WhisMuno.", crate::update::current_version())
             } else {
                 "The version you're running.".to_owned()
             };

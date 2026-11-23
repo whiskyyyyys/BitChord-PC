@@ -1880,8 +1880,8 @@ fn settings_connections(app: &mut App, ui: &mut Ui) {
                     });
                 });
                 divider(ui);
-                setting_row(ui, "Name", Some("What follows the verb. Empty shows BitChord x Whis."), |ui| {
-                    settings_field(ui, &mut app.discord_prefs.name, "BitChord x Whis", 128);
+                setting_row(ui, "Name", Some("What follows the verb. Empty shows WhisMuno."), |ui| {
+                    settings_field(ui, &mut app.discord_prefs.name, "WhisMuno", 128);
                 });
             }
         });

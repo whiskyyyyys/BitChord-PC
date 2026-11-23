@@ -19,7 +19,7 @@ const RETRY: Duration = Duration::from_secs(15);
 
 /// The name after the verb, until the card is customised: the head of the card reads
 /// "Listening to BitChord x Whis", which is what the app is called.
-const DEFAULT_NAME: &str = "BitChord x Whis";
+const DEFAULT_NAME: &str = "WhisMuno";
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Presence {
@@ -113,7 +113,10 @@ impl Prefs {
             show_quality: flag("discord_show_quality", true),
             advanced: flag("discord_advanced", false),
             activity: ActivityKind::parse(&get("discord_activity").unwrap_or_default()),
-            name: get("discord_name").filter(|s| !s.trim().is_empty()).unwrap_or_else(|| DEFAULT_NAME.to_owned()),
+            name: get("discord_name")
+                .map(|s| s.trim().to_owned())
+                .filter(|s| !s.is_empty() && s != "BitChord x Whis" && s != "BitChord")
+                .unwrap_or_else(|| DEFAULT_NAME.to_owned()),
         }
     }
 
@@ -138,7 +141,7 @@ impl Prefs {
 }
 
 const DEFAULT_BUTTON1: &str = "Listen on YouTube Music";
-const DEFAULT_BUTTON2: &str = "Visit BitChord x Whis";
+const DEFAULT_BUTTON2: &str = "Visit WhisMuno";
 const PROJECT_URL: &str = "https://github.com/whiskyyyyys/BitChord-PC";
 /// The cover when a song has no artwork URL: the card always has one, as the old app's did.
 const FALLBACK_ART: &str = "https://raw.githubusercontent.com/kushagrasinghx/BitChord/main/app/src/main/ic_launcher-playstore.png";

@@ -927,7 +927,7 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
     let lyric = active_cue.as_ref().map(|c| c.shot.text.clone());
     let compact_text = lyric.clone().unwrap_or_else(|| match &track {
         Some(tr) => tr.title.clone(),
-        None => "BitChord x Whis".to_owned(),
+        None => "WhisMuno".to_owned(),
     });
 
     // Track lyric line transitions for smooth rising animation.
@@ -1029,7 +1029,7 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
             if tucked {
                 let hit = ui.interact(pill, ui.id().with("notch-peek"), Sense::click())
                     .on_hover_cursor(egui::CursorIcon::PointingHand)
-                    .on_hover_text("Show Whis Notch");
+                    .on_hover_text("Show WhisMuno Notch");
                 ctx.data_mut(|d| d.insert_temp(peek_hover_key, hit.hovered()));
                 let bar = Rect::from_center_size(pill.center(), vec2(44.0, 3.0));
                 let bar_color = mint.gamma_multiply(if hit.hovered() { 1.0 } else { 0.72 });

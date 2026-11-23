@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
-Name=BitChord
+Name=WhisMuno
 GenericName=Music Player
-Comment=Native BitChord music client
+Comment=WhisMuno music & lyrics notch client
 Exec=bitchord
 Icon=bitchord
 Terminal=false
