@@ -907,68 +907,114 @@ fn cue(app: &mut App, now: f64) -> Option<Cue> {
 
 pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
     let key = egui::Id::unique("whis-notch-expanded");
-    let anim_id = egui::Id::unique("whis-notch-anim");
+    let anim_w_id = egui::Id::unique("whis-notch-cur-w");
+    let anim_h_id = egui::Id::unique("whis-notch-cur-h");
     let expanded = ctx.data(|d| d.get_temp::<bool>(key)).unwrap_or(false);
-    let t = ctx.animate_bool_with_time(anim_id, expanded, 0.22);
-    let size = egui::vec2(
-        egui::lerp(340.0..=432.0, t),
-        egui::lerp(36.0..=138.0, t),
-    );
+
+    let now = ctx.input(|i| i.time);
+    let dt = ctx.input(|i| i.stable_dt).clamp(0.001, 0.05);
+    let track = app.playing_track().cloned().or_else(|| app.current().cloned());
+    let active_cue = cue(app, now);
+    let lyric = active_cue.as_ref().map(|c| c.shot.text.clone());
+    let compact_text = lyric.clone().unwrap_or_else(|| match &track {
+        Some(tr) => tr.title.clone(),
+        None => "BitChord x Whis".to_owned(),
+    });
+
+    // Nusa Notch-style dynamic width: smoothly stretches for long lyrics, shrinks & centers for short ones.
+    let measured_w = ctx.fonts_mut(|f| {
+        f.layout_no_wrap(compact_text.clone(), theme::semibold(13.5), egui::Color32::WHITE).size().x
+    });
+    let target_w = if expanded { 420.0 } else { (measured_w + 96.0).clamp(210.0, 620.0) };
+    let target_h = if expanded { 148.0 } else { 36.0 };
+
+    let prev_w = ctx.data(|d| d.get_temp::<f32>(anim_w_id)).unwrap_or(target_w);
+    let prev_h = ctx.data(|d| d.get_temp::<f32>(anim_h_id)).unwrap_or(target_h);
+    let ease = 1.0 - (-dt * 14.0).exp();
+    let cur_w = if (target_w - prev_w).abs() < 0.6 { target_w } else { prev_w + (target_w - prev_w) * ease };
+    let cur_h = if (target_h - prev_h).abs() < 0.6 { target_h } else { prev_h + (target_h - prev_h) * ease };
+    ctx.data_mut(|d| {
+        d.insert_temp(anim_w_id, cur_w);
+        d.insert_temp(anim_h_id, cur_h);
+    });
+    let animating = (target_w - cur_w).abs() > 0.5 || (target_h - cur_h).abs() > 0.5;
+
+    let size = egui::vec2(cur_w.round(), cur_h.round());
     let scale = ctx.pixels_per_point();
+    let pos = crate::fullscreen::work_area().map(|area| {
+        egui::pos2((area.center().x / scale - size.x / 2.0).round(), (area.top() / scale).round())
+    });
+
     let mut builder = egui::ViewportBuilder::default().with_title("Whis Notch")
         .with_inner_size(size).with_decorations(false).with_transparent(true).with_resizable(false)
         .with_taskbar(false).with_active(false).with_always_on_top();
-    if let Some(area) = crate::fullscreen::work_area() {
-        builder = builder.with_position(egui::pos2(area.center().x / scale - size.x / 2.0, area.top() / scale));
+    if let Some(p) = pos {
+        builder = builder.with_position(p);
     }
-    let now = ctx.input(|i| i.time);
-    let track = app.playing_track().cloned().or_else(|| app.current().cloned());
-    let lyric = cue(app, now).map(|c| c.shot.text);
-    let compact_text = lyric.clone().unwrap_or_else(|| match &track {
-        Some(tr) => tr.title.clone(),
-        None => "Play a song to see its lyrics".to_owned(),
-    });
+
     let id = egui::ViewportId::from_hash_of("whis-desktop-notch");
     ctx.show_viewport_immediate(id, builder, |ui, _| {
         if ui.input(|i| i.viewport().close_requested()) {
             app.desktop_notch = false;
             return;
         }
-        ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(225, 244, 240));
+        // Keep viewport size & top-center alignment smoothly synced as lyrics grow/shrink.
+        let cur_rect = ui.max_rect();
+        if (cur_rect.width() - size.x).abs() > 0.5 || (cur_rect.height() - size.y).abs() > 0.5 {
+            ui.ctx().send_viewport_cmd(egui::ViewportCommand::InnerSize(size));
+            if let Some(p) = pos {
+                ui.ctx().send_viewport_cmd(egui::ViewportCommand::OuterPosition(p));
+            }
+        }
+
+        ui.visuals_mut().override_text_color = Some(egui::Color32::from_rgb(240, 246, 250));
         let bounds = ui.max_rect();
-        let pill = egui::Rect::from_min_max(bounds.min, bounds.max - egui::vec2(0.0, 2.0)).shrink2(egui::vec2(2.0, 0.0));
         let mint = egui::Color32::from_rgb(102, 235, 203);
-        let bg = egui::Color32::from_rgb(12, 18, 25);
-        let border = egui::Color32::from_rgb(52, 76, 80);
-        let radius = egui::CornerRadius { nw: 0, ne: 0, sw: 20, se: 20 };
-        ui.painter().rect_filled(pill, radius, bg);
-        ui.painter().rect_stroke(pill, radius, egui::Stroke::new(1.0, border), egui::StrokeKind::Inside);
+        let bg = egui::Color32::from_rgb(5, 7, 10);
+        let rim = egui::Color32::from_rgba_unmultiplied(255, 255, 255, 18);
+        let bottom_r = if expanded { 22 } else { 18 };
+        let radius = egui::CornerRadius { nw: 0, ne: 0, sw: bottom_r, se: bottom_r };
+        ui.painter().rect_filled(bounds, radius, bg);
+        ui.painter().rect_stroke(bounds, radius, egui::Stroke::new(0.75, rim), egui::StrokeKind::Inside);
 
         let playing = app.playing();
         let draw_eq = |ui: &egui::Ui, center: egui::Pos2| {
-            for i in 0..3 {
-                let phase = now * 7.5 + (i as f64) * 1.3;
-                let h = if playing { 5.0 + 7.0 * ((phase.sin() * 0.5 + 0.5) as f32) } else { 4.0 };
-                let x = center.x + (i as f32 - 1.0) * 4.5;
-                let bar = egui::Rect::from_center_size(egui::pos2(x, center.y), egui::vec2(2.4, h));
-                ui.painter().rect_filled(bar, 1.2, mint);
+            for i in 0..4 {
+                let phase = now * 8.2 + (i as f64) * 1.15;
+                let h = if playing { 4.5 + 8.5 * ((phase.sin() * 0.5 + 0.5) as f32) } else { 3.5 };
+                let x = center.x + (i as f32 - 1.5) * 4.0;
+                let bar = egui::Rect::from_center_size(egui::pos2(x, center.y), egui::vec2(2.2, h));
+                ui.painter().rect_filled(bar, 1.1, mint);
             }
         };
 
+        let fmt_time = |secs: f32| {
+            let s = secs.max(0.0).round() as u32;
+            format!("{}:{:02}", s / 60, s % 60)
+        };
+
         egui::Frame::new().inner_margin(egui::Margin::symmetric(14, 6)).show(ui, |ui| {
-            // Compact / Header bar (Coucou-style top-docked Dynamic Island)
             if !expanded {
                 let (row, hit) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 24.0), egui::Sense::click());
-                let thumb = egui::Rect::from_center_size(egui::pos2(row.left() + 11.0, row.center().y), egui::vec2(20.0, 20.0));
+                let thumb = egui::Rect::from_center_size(egui::pos2(row.left() + 10.0, row.center().y), egui::vec2(20.0, 20.0));
                 match &track {
                     Some(tr) => paint_cover(ui, thumb, &tr.thumbs, 6.0, 1.0),
-                    None => glyphs::draw(ui, thumb.center(), 15.0, glyphs::WAVE, mint),
+                    None => glyphs::draw(ui, thumb.center(), 14.0, glyphs::WAVE, mint),
                 }
-                let eq_center = egui::pos2(row.right() - 24.0, row.center().y);
+                let eq_center = egui::pos2(row.right() - 10.0, row.center().y);
                 draw_eq(ui, eq_center);
-                ui.painter().text(row.right_center(), egui::Align2::RIGHT_CENTER, "⌄", theme::regular(14.0), mint);
-                let content = egui::Rect::from_min_max(egui::pos2(thumb.right() + 9.0, row.top()), egui::pos2(eq_center.x - 12.0, row.bottom()));
-                ui.painter().with_clip_rect(content).text(content.left_center(), egui::Align2::LEFT_CENTER, &compact_text, theme::semibold(13.5), egui::Color32::WHITE);
+
+                let content = egui::Rect::from_min_max(
+                    egui::pos2(thumb.right() + 10.0, row.top()),
+                    egui::pos2(eq_center.x - 14.0, row.bottom()),
+                );
+                ui.painter().with_clip_rect(content).text(
+                    content.center(),
+                    egui::Align2::CENTER_CENTER,
+                    &compact_text,
+                    theme::semibold(13.5),
+                    egui::Color32::WHITE,
+                );
                 if hit.on_hover_text(&compact_text).clicked() {
                     ctx.data_mut(|d| d.insert_temp(key, true));
                     ctx.request_repaint();
@@ -976,95 +1022,112 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
                 return;
             }
 
-            // Expanded Dynamic Island view
-            ui.add_space(2.0);
+            // Expanded Coucou / Dynamic Island Media Card
+            ui.add_space(4.0);
             ui.horizontal(|ui| {
-                let art_size = 46.0;
+                let art_size = 52.0;
                 let (art_rect, _) = ui.allocate_exact_size(egui::vec2(art_size, art_size), egui::Sense::hover());
                 match &track {
-                    Some(tr) => paint_cover(ui, art_rect, &tr.thumbs, 10.0, 1.0),
+                    Some(tr) => paint_cover(ui, art_rect, &tr.thumbs, 12.0, 1.0),
                     None => {
-                        ui.painter().rect_filled(art_rect, 10.0, theme::glass(0.08));
-                        icon_at(ui, art_rect.center(), icon::MUSIC, 20.0, theme::text_faint());
+                        ui.painter().rect_filled(art_rect, 12.0, egui::Color32::from_rgba_unmultiplied(255, 255, 255, 14));
+                        icon_at(ui, art_rect.center(), icon::MUSIC, 22.0, theme::text_faint());
                     }
                 }
-                ui.add_space(8.0);
-                let info_w = (ui.available_width() - 52.0).max(60.0);
+                ui.add_space(10.0);
+                let info_w = (ui.available_width() - 56.0).max(60.0);
                 ui.allocate_ui(egui::vec2(info_w, art_size), |ui| {
                     ui.vertical(|ui| {
                         let (title, artist) = match &track {
                             Some(tr) => (tr.title.as_str(), tr.artist_line()),
                             None => ("Nothing playing", String::new()),
                         };
-                        text_at(ui, ui.cursor().min, title, theme::semibold(13.5), egui::Color32::WHITE, info_w);
-                        ui.add_space(17.0);
+                        text_at(ui, ui.cursor().min, title, theme::semibold(14.0), egui::Color32::WHITE, info_w);
+                        ui.add_space(18.0);
                         if !artist.is_empty() {
-                            text_at(ui, ui.cursor().min, &artist, theme::regular(11.5), theme::text_dim(), info_w);
-                            ui.add_space(15.0);
+                            text_at(ui, ui.cursor().min, &artist, theme::regular(12.0), egui::Color32::from_rgb(148, 163, 184), info_w);
+                            ui.add_space(16.0);
                         }
                         if let Some(l) = &lyric {
-                            text_at(ui, ui.cursor().min, l, theme::semibold(11.5), mint, info_w);
+                            text_at(ui, ui.cursor().min, l, theme::semibold(12.0), mint, info_w);
                         }
                     });
                 });
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
                     let top_btn = |ui: &mut egui::Ui, txt: &str, tip: &str| {
                         let (r, hit) = ui.allocate_exact_size(egui::vec2(22.0, 22.0), egui::Sense::click());
-                        if hit.hovered() { ui.painter().rect_filled(r, 7.0, theme::glass(0.14)); }
-                        ui.painter().text(r.center(), egui::Align2::CENTER_CENTER, txt, theme::semibold(13.0), mint);
+                        let fill = if hit.hovered() {
+                            egui::Color32::from_rgba_unmultiplied(255, 255, 255, 26)
+                        } else {
+                            egui::Color32::from_rgba_unmultiplied(255, 255, 255, 12)
+                        };
+                        ui.painter().rect_filled(r, 11.0, fill);
+                        ui.painter().text(r.center(), egui::Align2::CENTER_CENTER, txt, theme::semibold(12.5), egui::Color32::from_rgb(203, 213, 225));
                         hit.on_hover_text(tip).clicked()
                     };
                     if top_btn(ui, "×", "Hide notch") { app.desktop_notch = false; }
-                    if top_btn(ui, "⌃", "Collapse") {
+                    ui.add_space(4.0);
+                    if top_btn(ui, "−", "Collapse") {
                         ctx.data_mut(|d| d.insert_temp(key, false));
                         ctx.request_repaint();
                     }
                 });
             });
 
-            // Thin progress bar
-            ui.add_space(6.0);
-            let (prog_rect, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 3.5), egui::Sense::hover());
-            ui.painter().rect_filled(prog_rect, 2.0, theme::glass(0.14));
-            let pos = app.audio.status.position_smooth().as_secs_f32();
-            let dur = app.audio.status.duration().map(|d| d.as_secs_f32())
+            // Sleek progress bar + timestamps
+            ui.add_space(10.0);
+            let pos_s = app.audio.status.position_smooth().as_secs_f32();
+            let dur_s = app.audio.status.duration().map(|d| d.as_secs_f32())
                 .or_else(|| track.as_ref().and_then(|tr| tr.duration).map(|d| d as f32))
                 .unwrap_or(0.0);
-            if dur > 0.0 {
-                let frac = (pos / dur).clamp(0.0, 1.0);
-                let fill = egui::Rect::from_min_size(prog_rect.min, egui::vec2(prog_rect.width() * frac, prog_rect.height()));
-                ui.painter().rect_filled(fill, 2.0, mint);
-            }
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new(fmt_time(pos_s)).size(10.5).color(egui::Color32::from_rgb(148, 163, 184)));
+                let bar_w = (ui.available_width() - 36.0).max(40.0);
+                let (prog_rect, _) = ui.allocate_exact_size(egui::vec2(bar_w, 4.0), egui::Sense::hover());
+                ui.painter().rect_filled(prog_rect, 2.0, egui::Color32::from_rgba_unmultiplied(255, 255, 255, 24));
+                if dur_s > 0.0 {
+                    let frac = (pos_s / dur_s).clamp(0.0, 1.0);
+                    let fill = egui::Rect::from_min_size(prog_rect.min, egui::vec2(prog_rect.width() * frac, prog_rect.height()));
+                    ui.painter().rect_filled(fill, 2.0, mint);
+                }
+                ui.label(egui::RichText::new(fmt_time(dur_s)).size(10.5).color(egui::Color32::from_rgb(148, 163, 184)));
+            });
 
-            // Playback controls + volume + live equalizer
-            ui.add_space(6.0);
+            // Modern playback controls + volume + live equalizer
+            ui.add_space(8.0);
             ui.horizontal(|ui| {
                 let control = |ui: &mut egui::Ui, label: &str, glyph: &'static [u8], accent: bool| {
-                    let (r, hit) = ui.allocate_exact_size(egui::vec2(30.0, 26.0), egui::Sense::click());
+                    let sz = if accent { egui::vec2(34.0, 30.0) } else { egui::vec2(30.0, 28.0) };
+                    let (r, hit) = ui.allocate_exact_size(sz, egui::Sense::click());
                     if accent {
-                        ui.painter().rect_filled(r, 11.0, if hit.hovered() { mint.gamma_multiply(0.28) } else { mint.gamma_multiply(0.18) });
-                    } else if hit.hovered() {
-                        ui.painter().rect_filled(r, 11.0, theme::glass(0.12));
+                        ui.painter().rect_filled(r, 15.0, if hit.hovered() { mint } else { mint.gamma_multiply(0.88) });
+                        glyphs::draw(ui, r.center(), 15.0, glyph, egui::Color32::from_rgb(6, 12, 16));
+                    } else {
+                        if hit.hovered() {
+                            ui.painter().rect_filled(r, 10.0, egui::Color32::from_rgba_unmultiplied(255, 255, 255, 20));
+                        }
+                        glyphs::draw(ui, r.center(), 15.0, glyph, egui::Color32::WHITE);
                     }
-                    glyphs::draw(ui, r.center(), 15.0, glyph, mint);
                     hit.on_hover_text(label).clicked()
                 };
                 if control(ui, "Previous", glyphs::PREVIOUS, false) { app.prev(); }
+                ui.add_space(4.0);
                 if control(ui, if playing { "Pause" } else { "Play" }, if playing { glyphs::PAUSE } else { glyphs::PLAY }, true) { app.toggle(); }
+                ui.add_space(4.0);
                 if control(ui, "Next", glyphs::NEXT, false) { app.next(); }
-                ui.add_space(8.0);
-                ui.label(egui::RichText::new("Vol").size(11.5).color(theme::text_dim()));
+                ui.add_space(12.0);
                 let mut v = app.audio.volume();
-                if ui.add(egui::Slider::new(&mut v, 0.0..=1.0).show_value(false)).changed() { app.audio.set_volume(v); }
+                ui.add_sized(egui::vec2(108.0, 18.0), egui::Slider::new(&mut v, 0.0..=1.0).show_value(false));
+                if (v - app.audio.volume()).abs() > 0.001 { app.audio.set_volume(v); }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let (eq_r, _) = ui.allocate_exact_size(egui::vec2(20.0, 20.0), egui::Sense::hover());
+                    let (eq_r, _) = ui.allocate_exact_size(egui::vec2(22.0, 20.0), egui::Sense::hover());
                     draw_eq(ui, eq_r.center());
                 });
             });
         });
 
-        if playing || (t > 0.0 && t < 1.0) {
-            ui.ctx().request_repaint_after(std::time::Duration::from_millis(if t > 0.0 && t < 1.0 { 16 } else { 80 }));
+        if playing || animating {
+            ui.ctx().request_repaint_after(std::time::Duration::from_millis(if animating { 16 } else { 60 }));
         }
     });
 }
