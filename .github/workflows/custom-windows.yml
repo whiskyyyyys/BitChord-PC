@@ -33,6 +33,16 @@ jobs:
           New-Item -ItemType Directory portable
           Copy-Item target/release/bitchord.exe, installer/portable.txt, LICENSE, README.md portable
           Copy-Item $dll.FullName portable
+      - name: Verify mint W icon embedded in the Windows executable
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.Drawing
+          $ico = [Drawing.Icon]::ExtractAssociatedIcon((Resolve-Path app/portable/bitchord.exe).Path)
+          $bmp = $ico.ToBitmap()
+          $mint = 0
+          $dark = 0
+          for($x=0;$x -lt $bmp.Width;$x++){for($y=0;$y -lt $bmp.Height;$y++){ $p=$bmp.GetPixel($x,$y); if($p.A -gt 200 -and $p.G -gt 180 -and $p.R -lt 160){$mint++}; if($p.A -gt 200 -and $p.G -lt 120 -and $p.B -gt 35){$dark++} }}
+          if($mint -lt 20 -or $dark -lt 5){throw "Embedded W icon check failed"}
       - uses: actions/upload-artifact@v4
         with:
           name: BitChord-x-Whis-Windows-x64
