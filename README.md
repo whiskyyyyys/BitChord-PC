@@ -1,0 +1,21 @@
+# BitChord x Whis
+
+Windows x64 portable edition of [BitChord PC](https://github.com/jackychan4891/BitChord-PC-Official), with a W icon, midnight and mint colors, and Discord Rich Presence recovery during playback.
+
+## Download
+
+Open [Windows builds](https://github.com/whiskyyyyys/BitChord-PC/actions/workflows/custom-windows.yml), select a successful run, and download **BitChord-x-Whis-Windows-x64** from Artifacts while signed in to GitHub. Extract the whole ZIP and launch `bitchord.exe`. For Rich Presence, open Discord desktop and enable Discord under BitChord Settings → Connections.
+
+## Source and build
+
+The workflow checks out [the exact upstream source](https://github.com/jackychan4891/BitChord-PC-Official/tree/b68871126b8262a6d71da5dc48f748d7e13d075f) and applies [the Whis changes](customization/whis.patch). To reproduce on Windows with Git, Rust stable and MSVC Build Tools, run from this repository:
+
+```powershell
+git clone https://github.com/jackychan4891/BitChord-PC-Official.git app
+git -C app checkout b68871126b8262a6d71da5dc48f748d7e13d075f
+git -C app apply --binary ../customization/whis.patch
+Set-Location app
+cargo build --locked --release
+```
+
+Based on BitChord PC under [GPL-3.0-only](https://github.com/jackychan4891/BitChord-PC-Official/blob/b68871126b8262a6d71da5dc48f748d7e13d075f/LICENSE). Whis modifications are distributed under the same license.
