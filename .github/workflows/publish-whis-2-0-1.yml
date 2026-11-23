@@ -1,0 +1,47 @@
+name: Publish Whis 2.0.1 portable release
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-whis-2-0-1.yml']
+permissions:
+  actions: read
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify build, download original ZIP and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -eu
+          tag=v2.0.1-whis.1
+          asset=BitChord-x-Whis-2.0.1-Windows-x64.zip
+          sha=02a7ca222cf00cbface23706d2268a82783698eb
+          gh api "repos/$REPO/actions/runs/45094673834" | jq -e --arg sha "$sha" '.head_sha==$sha and .conclusion=="success"'
+          gh api "repos/$REPO/actions/artifacts/14783017381/zip" > "$asset"
+          unzip -tq "$asset"
+          unzip -Z1 "$asset" | grep -Fx bitchord.exe
+          checksum=$(sha256sum "$asset" | cut -d' ' -f1)
+          cat > notes.md <<EOF
+          A portable YouTube Music player for Windows x64, built on BitChord PC 2.0.1.
+
+          ### What's new in the Whis edition
+
+          - Midnight-blue surfaces, mint accents and a custom W icon.
+          - Discord Rich Presence shows the current track and artist. During playback the app refreshes its status periodically to recover after Discord restarts.
+          - Paused playback skips unnecessary status preparation.
+
+          ### Download and run
+
+          Under **Assets**, download **$asset**, extract the entire archive and open **bitchord.exe**. Keep the DLL and portable marker beside the executable.
+
+          For Rich Presence, open Discord desktop, enable activity sharing and turn on **Settings → Connections → Discord** in BitChord.
+
+          **SHA-256:** $checksum
+
+          [Windows build](https://github.com/$REPO/actions/runs/45094673834) · [Original BitChord project](https://github.com/jackychan4891/BitChord-PC-Official)
+          EOF
+          gh release create "$tag" "$asset" --repo "$REPO" --target "$sha" --title "BitChord x Whis 2.0.1 · Windows x64" --notes-file notes.md
