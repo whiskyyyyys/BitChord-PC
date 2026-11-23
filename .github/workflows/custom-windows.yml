@@ -96,12 +96,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="v2.0.1-whis.${GITHUB_RUN_NUMBER}"
+          cat > notes.md <<'EOF'
+          Cross-platform rebuild with Whis midnight-blue & mint theme, mint W icon, and Coucou-style top-docked Dynamic Island notch:
+          - **Windows x64 Installer**: `BitChord-x-Whis-2.0.1-Windows-x64-Setup.exe`
+          - **Windows x64 Portable**: `BitChord-x-Whis-2.0.1-Windows-x64-Portable.zip`
+          - **macOS**: `BitChord-x-Whis-2.0.1-macOS.dmg`
+          - **Linux x64**: `BitChord-x-Whis-2.0.1-Linux-x64.tar.gz` (run `./install.sh` after extracting)
+          EOF
+          sed -i 's/^          //' notes.md
           gh release create "$tag" artifacts/* \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "BitChord x Whis 2.0.1 (Build ${GITHUB_RUN_NUMBER})" \
-            --notes "Cross-platform rebuild with Whis midnight-blue & mint theme, mint W icon, and Coucou-style top-docked Dynamic Island notch:
-- **Windows x64 Installer**: \`BitChord-x-Whis-2.0.1-Windows-x64-Setup.exe\`
-- **Windows x64 Portable**: \`BitChord-x-Whis-2.0.1-Windows-x64-Portable.zip\`
-- **macOS**: \`BitChord-x-Whis-2.0.1-macOS.dmg\`
-- **Linux x64**: \`BitChord-x-Whis-2.0.1-Linux-x64.tar.gz\` (run \`./install.sh\` after extracting)"
+            --notes-file notes.md
