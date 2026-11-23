@@ -29,11 +29,9 @@ impl App {
     /// new song, play/pause, a seek, or a newly learned duration.
     pub(super) fn sync_discord(&mut self) {
         let Some(d) = &self.discord else { return };
-        let track = self.playing_track().filter(|_| self.playing() && !self.buffering);
+        let playing = self.playing() && !self.buffering;
+        let track = self.playing_track().or_else(|| self.current());
         if track.is_none() {
-            if self.discord_sent.take().is_some() {
-                d.set(None);
-            }
             return;
         }
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as i64;
@@ -46,7 +44,8 @@ impl App {
         let same = match (track, &self.discord_sent) {
             (Some(t), Some(b)) => {
                 b.video_id == t.id
-                    && (start_ms - b.start_ms).abs() < 2000
+                    && b.paused == !playing
+                    && (b.paused || (start_ms - b.start_ms).abs() < 2000)
                     && b.end_ms.is_some() == (dur > 0)
                     && b.quality.as_deref() == Some(quality.as_str())
             }
@@ -65,6 +64,7 @@ impl App {
             quality: Some(quality),
             start_ms,
             end_ms: (dur > 0).then_some(start_ms + dur),
+            paused: !playing,
         });
         d.set(want.clone());
         self.discord_sent = want;

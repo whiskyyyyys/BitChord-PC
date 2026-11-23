@@ -108,7 +108,7 @@ mod window {
     use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
     use windows::Win32::UI::HiDpi::{GetDpiForWindow, GetSystemMetricsForDpi};
     use windows::Win32::UI::WindowsAndMessaging::{
-        CreateIconFromResourceEx, DestroyIcon, HICON, ICON_BIG, ICON_SMALL, LR_DEFAULTCOLOR, SM_CXICON, SM_CXSMICON, SendMessageW, WM_SETICON,
+        CreateIconFromResourceEx, DestroyIcon, GCLP_HICON, GCLP_HICONSM, HICON, ICON_BIG, ICON_SMALL, LR_DEFAULTCOLOR, SM_CXICON, SM_CXSMICON, SendMessageW, SetClassLongPtrW, WM_SETICON,
     };
 
     use super::Variant;
@@ -130,6 +130,8 @@ mod window {
                 match CreateIconFromResourceEx(v.png(px as u32), true, 0x0003_0000, px, px, LR_DEFAULTCOLOR) {
                     Ok(icon) => {
                         SendMessageW(hwnd, WM_SETICON, Some(WPARAM(kind as usize)), Some(LPARAM(icon.0 as isize)));
+                        let gclp = if kind == ICON_BIG { GCLP_HICON } else { GCLP_HICONSM };
+                        SetClassLongPtrW(hwnd, gclp, icon.0 as isize);
                         made.push(icon.0 as usize);
                     }
                     Err(e) => log::warn!("app icon {}: {e}", v.id),
@@ -162,7 +164,7 @@ pub fn sync_shortcuts(id: &'static str, data_dir: &Path) {
 fn icon_file(v: &Variant, data_dir: &Path) -> anyhow::Result<PathBuf> {
     let dir = data_dir.join("icons");
     std::fs::create_dir_all(&dir)?;
-    let path = dir.join(format!("{}.ico", v.id));
+    let path = dir.join(format!("{}-whis2.ico", v.id));
     if std::fs::read(&path).ok().as_deref() != Some(v.ico) {
         std::fs::write(&path, v.ico)?;
     }
@@ -185,7 +187,7 @@ mod shortcuts {
     /// How many shortcuts were changed or created.
     pub fn sync(v: &Variant, data_dir: &Path) -> anyhow::Result<usize> {
         let exe = std::env::current_exe()?;
-        let icon = if v.id == super::CLASSIC { exe.clone() } else { super::icon_file(v, data_dir)? };
+        let icon = super::icon_file(v, data_dir)?;
         // SAFETY: COM on this thread only, for the shell link objects below.
         let hr = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
         if hr.is_err() {
@@ -205,15 +207,13 @@ mod shortcuts {
                 Err(e) => log::debug!("{}: {e}", lnk.display()),
             }
         }
-        if !changed.is_empty() {
-            // SAFETY: plain notifications; the path strings outlive the calls.
-            unsafe {
-                for lnk in &changed {
-                    let p = HSTRING::from(lnk.as_os_str());
-                    SHChangeNotify(SHCNE_UPDATEITEM, SHCNF_PATHW, Some(p.as_ptr().cast()), None);
-                }
-                SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, None, None);
+        // SAFETY: plain notifications; the path strings outlive the calls.
+        unsafe {
+            for lnk in &changed {
+                let p = HSTRING::from(lnk.as_os_str());
+                SHChangeNotify(SHCNE_UPDATEITEM, SHCNF_PATHW, Some(p.as_ptr().cast()), None);
             }
+            SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, None, None);
         }
         Ok(changed.len())
     }

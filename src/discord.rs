@@ -33,6 +33,7 @@ pub struct Presence {
     /// Unix ms when the song (virtually) started, so Discord draws elapsed time.
     pub start_ms: i64,
     pub end_ms: Option<i64>,
+    pub paused: bool,
 }
 
 /// The verb Discord puts above the card ("Listening to …").
@@ -254,7 +255,9 @@ fn run(id: &str, rx: Receiver<Msg>) {
 
 fn activity<'a>(p: &'a Presence, prefs: &Prefs) -> Activity<'a> {
     let mut ts = Timestamps::new().start(p.start_ms);
-    if let Some(end) = p.end_ms {
+    if !p.paused
+        && let Some(end) = p.end_ms
+    {
         ts = ts.end(end);
     }
     // What the cover is labelled with: a measured premium format when the card is set to
@@ -275,11 +278,16 @@ fn activity<'a>(p: &'a Presence, prefs: &Prefs) -> Activity<'a> {
     // Discord's own name for this application ID is not the app's, so the card always
     // carries ours: a blank field falls back to the default rather than to Discord's.
     let name = if prefs.name.trim().is_empty() { DEFAULT_NAME } else { prefs.name.trim() };
+    let state_text = if p.paused {
+        format!("Paused · {}", p.artist)
+    } else {
+        p.artist.clone()
+    };
     let act = Activity::new()
         .activity_type(prefs.activity.activity())
         .name(field(name))
         .details(field(&p.title))
-        .state(field(&p.artist))
+        .state(field(&state_text))
         // Which of the two lines Discord repeats beside your name in a channel list.
         .status_display_type(if prefs.lead_with_song { StatusDisplayType::Details } else { StatusDisplayType::State })
         .timestamps(ts)

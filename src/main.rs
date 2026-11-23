@@ -91,7 +91,7 @@ fn main() -> eframe::Result {
     let background = std::env::var_os("YTM_BACKGROUND").is_some();
     let mut viewport = egui::ViewportBuilder::default()
         .with_title("BitChord x Whis")
-        .with_app_id("bitchord")
+        .with_app_id("BitChord.Whis.v2")
         .with_inner_size(DEFAULT_SIZE)
         .with_min_inner_size(MIN_SIZE)
         // Windows: the app draws its own title bar (see `ui::titlebar`).
