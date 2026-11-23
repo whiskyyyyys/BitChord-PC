@@ -1,36 +1,47 @@
 # BitChord x Whis
 
-A portable YouTube Music desktop player for Windows x64, based on [BitChord PC](https://github.com/jackychan4891/BitChord-PC-Official). The Whis edition pairs a midnight-blue interface with mint accents and a W app icon.
+A portable YouTube Music desktop player for Windows x64, rebuilt from [BitChord PC](https://github.com/jackychan4891/BitChord-PC-Official) with the **Whis** midnight-blue & mint interface, mint **W** app icon, and a **Coucou-style Dynamic Island notch**.
 
-**[Download for Windows x64](https://github.com/whiskyyyyys/BitChord-PC/releases/download/v2.0.1-whis.2/BitChord-x-Whis-Notch-Windows-x64.zip)** · [Release notes](https://github.com/whiskyyyyys/BitChord-PC/releases/latest)
+**[Download Latest Release (Windows x64)](https://github.com/whiskyyyyys/BitChord-PC/releases/latest)** · [All Releases](https://github.com/whiskyyyyys/BitChord-PC/releases) · [Actions Builds](https://github.com/whiskyyyyys/BitChord-PC/actions)
 
-[Windows redesign build](https://github.com/whiskyyyyys/BitChord-PC/actions/runs/45101931335) · Separate Songs, Playlists and Albums in navigation and search, grouped settings, and a mint W icon.
+## Screenshots
+
+<p align="center">
+  <img src="docs/readme/hero.jpg" alt="BitChord x Whis Player" width="100%" />
+</p>
+
+| Home & Library | Search & Browse |
+| :---: | :---: |
+| ![Home](docs/readme/home.jpg) | ![Search](docs/readme/search.jpg) |
+
+| Themes & Customization | Artist View |
+| :---: | :---: |
+| ![Themes](docs/readme/settings-themes.jpg) | ![Artist](docs/readme/artist.jpg) |
 
 ## Features
 
-- **Lyrics notch** — in the redesign build, open **Settings → Notch**. Click the floating lyric pill to expand playback and volume controls, or use **Hide** to dismiss it. The earlier stable release keeps the switch in Settings → Appearance.
-
-- **Music and lyrics** — browse your library, play tracks, and follow synced lyrics when available.
-- **Discord Rich Presence** — share the current song and artist on your profile. While music plays, BitChord periodically refreshes the card so it can recover after Discord restarts.
-- **Portable Windows build** — extract the ZIP to a folder and launch the app. No installer or Python setup required.
+- **Coucou-style Dynamic Island Notch** — open **Settings → Notch** to enable the top-docked Dynamic Island bar.
+  - **Compact mode**: mini album cover, live synced lyrics or track title, and animated 3-bar equalizer.
+  - **Expanded mode** (click the notch): album artwork, track & artist info, synced lyric line, progress bar, **Previous / Play-Pause / Next** controls, volume slider, Collapse (`⌃`), and Hide (`×`).
+- **Music and lyrics** — browse your library, play tracks, and follow word/line-synced lyrics when available.
+- **Discord Rich Presence** — share the current song and artist on your profile, with periodic refresh so it recovers cleanly if Discord restarts.
+- **Portable Windows build** — download the ZIP from **Releases**, extract it, and run `bitchord.exe`. No installer required.
 
 ## Getting started
 
-1. Download the Windows x64 ZIP under **Assets** on the release page.
-2. Extract the entire ZIP and open `bitchord.exe`. Keep the accompanying files together.
-3. For Rich Presence, open Discord desktop, enable activity sharing in Discord, then turn on **Settings → Connections → Discord** in BitChord and play a track.
+1. Download `BitChord-x-Whis-Windows-x64.zip` from **[Releases](https://github.com/whiskyyyyys/BitChord-PC/releases/latest)**.
+2. Extract the entire ZIP into one folder (keep `bitchord.exe`, `WebView2Loader.dll`, and `portable.txt` together).
+3. Run `bitchord.exe`.
+4. For Rich Presence, open Discord desktop, enable activity sharing in Discord, then turn on **Settings → Connections → Discord** in BitChord.
 
-## Source and build
+## Build from source
 
-The workflow checks out [the exact upstream source](https://github.com/jackychan4891/BitChord-PC-Official/tree/d7d71a128c53a2352be8ea081f9a0a423b96a9e0) and extracts the [Whis source and icon overlay](customization/whis-overlay.zip.b64). To reproduce on Windows with Git, Rust stable and MSVC Build Tools, run from this repository:
+Requirements on Windows: **Rust stable** and **MSVC Build Tools**.
 
 ```powershell
-git clone https://github.com/jackychan4891/BitChord-PC-Official.git app
-git -C app checkout d7d71a128c53a2352be8ea081f9a0a423b96a9e0
-[IO.File]::WriteAllBytes("$env:TEMP/whis-overlay.zip", [Convert]::FromBase64String((Get-Content customization/whis-overlay.zip.b64 -Raw)))
-Expand-Archive "$env:TEMP/whis-overlay.zip" app -Force
-Set-Location app
 cargo build --locked --release
 ```
 
-Based on BitChord PC under [GPL-3.0-only](https://github.com/jackychan4891/BitChord-PC-Official/blob/d7d71a128c53a2352be8ea081f9a0a423b96a9e0/LICENSE). Whis modifications are distributed under the same license.
+Every push to `main` also triggers `.github/workflows/custom-windows.yml`, which compiles `bitchord.exe`, packages the portable ZIP, and publishes it to **GitHub Releases**.
+
+Based on BitChord PC under [GPL-3.0-only](LICENSE). Whis modifications are distributed under the same license.

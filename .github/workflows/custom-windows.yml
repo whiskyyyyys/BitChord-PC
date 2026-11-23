@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
 permissions:
-  contents: read
+  contents: write
 jobs:
   build:
     runs-on: windows-latest
@@ -34,3 +34,16 @@ jobs:
         with:
           name: BitChord-x-Whis-Windows-x64
           path: portable/
+      - name: Create portable ZIP and publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $zip = "BitChord-x-Whis-Windows-x64.zip"
+          Compress-Archive -Path portable/* -DestinationPath $zip -Force
+          $tag = "v2.0.1-whis.$env:GITHUB_RUN_NUMBER"
+          gh release create $tag $zip `
+            --repo "$env:GITHUB_REPOSITORY" `
+            --target "$env:GITHUB_SHA" `
+            --title "BitChord x Whis 2.0.1 (Build $env:GITHUB_RUN_NUMBER)" `
+            --notes "Portable Windows x64 build with Whis midnight-blue & mint theme, mint W icon, and Coucou-style top-docked Dynamic Island notch. Extract the ZIP and run **bitchord.exe**."
