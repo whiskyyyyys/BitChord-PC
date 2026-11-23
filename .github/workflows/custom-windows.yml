@@ -1,0 +1,36 @@
+name: BitChord x Whis Windows x64
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: jackychan4891/BitChord-PC-Official
+          ref: b68871126b8262a6d71da5dc48f748d7e13d075f
+          path: app
+          persist-credentials: false
+      - name: Apply Whis customization
+        run: git -C app apply --binary ../customization/whis.patch
+      - uses: dtolnay/rust-toolchain@stable
+      - working-directory: app
+        run: cargo build --locked --release
+      - name: Package portable app
+        working-directory: app
+        shell: pwsh
+        run: |
+          $dll = Get-ChildItem "$env:USERPROFILE/.cargo/registry/src/*/webview2-com-sys-*/x64/WebView2Loader.dll" | Select-Object -First 1
+          if (!$dll) { throw "Missing x64 WebView2Loader.dll" }
+          New-Item -ItemType Directory portable
+          Copy-Item target/release/bitchord.exe, installer/portable.txt, LICENSE, README.md portable
+          Copy-Item $dll.FullName portable
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BitChord-x-Whis-Windows-x64
+          path: app/portable/
