@@ -10,34 +10,21 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with:
-          repository: jackychan4891/BitChord-PC-Official
-          ref: d7d71a128c53a2352be8ea081f9a0a423b96a9e0
-          path: app
-          persist-credentials: false
-      - name: Apply Whis customization
-        shell: pwsh
-        run: |
-          [IO.File]::WriteAllBytes("$env:RUNNER_TEMP/whis.zip", [Convert]::FromBase64String((Get-Content customization/whis-overlay.zip.b64 -Raw)))
-          Expand-Archive "$env:RUNNER_TEMP/whis.zip" app -Force
       - uses: dtolnay/rust-toolchain@stable
-      - working-directory: app
-        run: cargo build --locked --release
+      - run: cargo build --locked --release
       - name: Package portable app
-        working-directory: app
         shell: pwsh
         run: |
           $dll = Get-ChildItem "$env:USERPROFILE/.cargo/registry/src/*/webview2-com-sys-*/x64/WebView2Loader.dll" | Select-Object -First 1
           if (!$dll) { throw "Missing x64 WebView2Loader.dll" }
-          New-Item -ItemType Directory portable
+          New-Item -ItemType Directory -Force portable | Out-Null
           Copy-Item target/release/bitchord.exe, installer/portable.txt, LICENSE, README.md portable
           Copy-Item $dll.FullName portable
       - name: Verify mint W icon embedded in the Windows executable
         shell: pwsh
         run: |
           Add-Type -AssemblyName System.Drawing
-          $ico = [Drawing.Icon]::ExtractAssociatedIcon((Resolve-Path app/portable/bitchord.exe).Path)
+          $ico = [Drawing.Icon]::ExtractAssociatedIcon((Resolve-Path portable/bitchord.exe).Path)
           $bmp = $ico.ToBitmap()
           $mint = 0
           $dark = 0
@@ -46,4 +33,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: BitChord-x-Whis-Windows-x64
-          path: app/portable/
+          path: portable/
