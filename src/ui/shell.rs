@@ -1130,7 +1130,7 @@ pub fn lyrics_drawer(app: &mut App, ui: &mut Ui, now: f64) {
     ui.add_space(8.0);
     let rect = ui.available_rect_before_wrap();
     let body_rect = Rect::from_min_max(
-        rect.min,
+        pos2(rect.right() - 352.0, rect.top()),
         pos2(rect.right(), (rect.bottom() - app.bar_height() - 6.0).max(rect.top() + 80.0)),
     );
     if app.current().is_none() {

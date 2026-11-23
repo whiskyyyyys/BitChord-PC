@@ -489,7 +489,9 @@ pub struct App {
     show_trans: bool,
     lyric_prefs: lyric_prefs::Prefs,
     lyric_view: karaoke::View,
+    pub(super) side_lyric_view: karaoke::View,
     lyric_clock: lyric_prefs::Clock,
+    pub(super) notch_clock: lyric_prefs::Clock,
     /// Rotation of a "record" cover (radians); advances only while playing.
     record_angle: f64,
 
@@ -817,7 +819,9 @@ impl App {
             show_trans: get("show_trans").is_none_or(|v| v == "1"),
             lyric_prefs: lyric_prefs::Prefs::load(&get),
             lyric_view: Default::default(),
+            side_lyric_view: Default::default(),
             lyric_clock: Default::default(),
+            notch_clock: Default::default(),
             record_angle: 0.0,
             logged_in,
             signing_in: Default::default(),
@@ -1290,13 +1294,15 @@ impl eframe::App for App {
         // lyrics ask for every frame while they animate (the karaoke sweep must be
         // smooth). Each egui frame re-lays-out the UI, so frame rate is the main CPU cost.
         let playing = self.playing();
-        if self.window_hidden {
+        if playing && self.desktop_notch {
+            ctx.request_repaint_after(Duration::from_millis(16));
+        } else if self.window_hidden {
             // In the tray or minimized: nothing to draw, only the player bookkeeping.
             if playing || self.buffering {
                 ctx.request_repaint_after(Duration::from_millis(250));
             }
         } else if (self.np_open || self.lyrics_drawer) && playing && !self.mini.busy() {
-            ctx.request_repaint_after(Duration::from_millis(33));
+            ctx.request_repaint_after(Duration::from_millis(16));
         } else if playing && self.mini.showing() && self.mini.lyrics {
             // The band's line lights word by word; four frames a second reads as a lag.
             ctx.request_repaint_after(Duration::from_millis(33));

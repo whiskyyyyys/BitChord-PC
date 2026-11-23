@@ -32,8 +32,8 @@
 
 Download from **[Releases](https://github.com/whiskyyyyys/BitChord-PC/releases/latest)**:
 
-- **Windows Installer (`.exe`)**: download and run `WhisMuno-2.0.6-Windows-x64-Setup.exe`.
-- **Windows Portable (`.zip`)**: download `WhisMuno-2.0.6-Windows-x64-Portable.zip`, extract all files into one folder, and run `bitchord.exe`.
+- **Windows Installer (`.exe`)**: download and run `WhisMuno-2.0.7-Windows-x64-Setup.exe`.
+- **Windows Portable (`.zip`)**: download `WhisMuno-2.0.7-Windows-x64-Portable.zip`, extract all files into one folder, and run `bitchord.exe`.
 
 For Discord Rich Presence, open Discord desktop, enable activity sharing in Discord, then turn on **Settings → Connections → Discord** in WhisMuno.
 

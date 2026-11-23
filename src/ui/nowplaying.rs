@@ -701,9 +701,22 @@ fn synced(app: &mut App, ui: &mut Ui, rect: Rect, id: &str, lyrics: &Lyrics, now
     let scale = app.lyric_prefs.text_scale;
     let frame = karaoke::Frame { lyrics, key, roman, trans, t, playing, now, rect, style, accent, centered, scale };
     // The view lives in `app`; the frame borrows `app` for decorations, so swap it out.
-    let mut view = std::mem::take(&mut app.lyric_view);
-    let out = if karaoke::dev_off("view") { karaoke::Out { seek: None, animating: true, user_scrolling: false } } else { view.show(ui, frame) };
-    app.lyric_view = view;
+    let use_side = !app.np_open && app.lyrics_drawer;
+    let mut view = if use_side {
+        std::mem::take(&mut app.side_lyric_view)
+    } else {
+        std::mem::take(&mut app.lyric_view)
+    };
+    let out = if karaoke::dev_off("view") {
+        karaoke::Out { seek: None, animating: true, user_scrolling: false }
+    } else {
+        view.show(ui, frame)
+    };
+    if use_side {
+        app.side_lyric_view = view;
+    } else {
+        app.lyric_view = view;
+    }
     if let Some(s) = out.seek {
         app.actions.push(Action::Seek(s as f32));
     }
@@ -731,7 +744,11 @@ fn synced(app: &mut App, ui: &mut Ui, rect: Rect, id: &str, lyrics: &Lyrics, now
         p.rect_stroke(r, 10.0, egui::Stroke::new(1.0, theme::with_alpha(Color32::WHITE, 0.2 * shown)), egui::StrokeKind::Inside);
         let at = r.center() - g.size() / 2.0;
         if hover > 0.0
-            && let Some((tex, glow_rect, uv)) = app.lyric_view.text_glow(ui.ctx(), g.clone(), at, 15.0)
+            && let Some((tex, glow_rect, uv)) = if use_side {
+                app.side_lyric_view.text_glow(ui.ctx(), g.clone(), at, 15.0)
+            } else {
+                app.lyric_view.text_glow(ui.ctx(), g.clone(), at, 15.0)
+            }
         {
             // `text-shadow: 0 0 1.5rem var(--blyrics-glow-color)`: a real blur of the letters.
             let glow = crate::preset::paint(&style.glow_color, accent);
@@ -742,7 +759,11 @@ fn synced(app: &mut App, ui: &mut Ui, rect: Rect, id: &str, lyrics: &Lyrics, now
             ui.ctx().request_repaint();
         }
         if resp.clicked() {
-            app.lyric_view.resume();
+            if use_side {
+                app.side_lyric_view.resume();
+            } else {
+                app.lyric_view.resume();
+            }
         }
     }
 }

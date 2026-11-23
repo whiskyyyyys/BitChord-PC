@@ -941,7 +941,7 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
     } else {
         (prev_text, cur_text, changed_at)
     };
-    let rise_q = ((now - changed_at) / 0.26).clamp(0.0, 1.0) as f32;
+    let rise_q = ((now - changed_at) / 0.36).clamp(0.0, 1.0) as f32;
     let lyric_animating = rise_q < 1.0;
 
     // Quantize to 16px steps with 20px shrink hysteresis so short words don't pump the pill.
@@ -1046,6 +1046,53 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
             }
         };
 
+        let draw_notch_lyric = |p: &egui::Painter, rect: Rect, base_size: f32, align_center: bool| {
+            let e = ease(rise_q);
+            if !prev_text.is_empty() && rise_q < 1.0 {
+                let out_sz = base_size - 0.8 * e;
+                let out_alpha = ((1.0 - e) * (1.0 - e) * 210.0) as u8;
+                let out_c = Color32::from_rgba_unmultiplied(230, 240, 245, out_alpha);
+                let g_out = p.layout_no_wrap(prev_text.clone(), theme::semibold(out_sz), out_c);
+                let out_x = if align_center { rect.center().x - g_out.size().x / 2.0 } else { rect.left() };
+                p.galley(pos2(out_x, rect.center().y - g_out.size().y / 2.0 - e * 13.0), g_out, out_c);
+            }
+
+            let dy_in = (1.0 - e) * 13.0;
+            let sz = base_size - 0.9 * (1.0 - e);
+            if let Some(c) = &active_cue
+                && c.shot.text == cur_text
+            {
+                let sung = sung_chars(&c.shot, c.t);
+                let dim_c = Color32::from_rgba_unmultiplied(148, 165, 182, (e * 215.0).round() as u8);
+                let g_dim = p.layout_no_wrap(cur_text.clone(), theme::semibold(sz), dim_c);
+                let text_x = if align_center { rect.center().x - g_dim.size().x / 2.0 } else { rect.left() };
+                let text_pos = pos2(text_x, rect.center().y - g_dim.size().y / 2.0 + dy_in);
+                p.galley(text_pos, g_dim.clone(), dim_c);
+                let (_, edge_x) = lit_edge(&g_dim, sung);
+
+                let mint_c = Color32::from_rgba_unmultiplied(102, 235, 203, (e * 245.0).round() as u8);
+                let g_mint = p.layout_no_wrap(cur_text.clone(), theme::semibold(sz), mint_c);
+                let mint_clip = Rect::from_min_max(
+                    rect.min,
+                    pos2((text_pos.x + edge_x + 14.0).clamp(rect.left(), rect.right()), rect.bottom()),
+                );
+                p.with_clip_rect(mint_clip).galley(text_pos - vec2(0.0, 0.6), g_mint, mint_c);
+
+                let lit_c = Color32::from_rgba_unmultiplied(255, 255, 255, (e * 255.0).round() as u8);
+                let g_lit = p.layout_no_wrap(cur_text.clone(), theme::semibold(sz), lit_c);
+                let lit_clip = Rect::from_min_max(
+                    rect.min,
+                    pos2((text_pos.x + edge_x + 1.0).clamp(rect.left(), rect.right()), rect.bottom()),
+                );
+                p.with_clip_rect(lit_clip).galley(text_pos - vec2(0.0, 0.8), g_lit, lit_c);
+            } else {
+                let in_c = Color32::from_rgba_unmultiplied(255, 255, 255, (e * 255.0).round() as u8);
+                let g_in = p.layout_no_wrap(cur_text.clone(), theme::semibold(sz), in_c);
+                let in_x = if align_center { rect.center().x - g_in.size().x / 2.0 } else { rect.left() };
+                p.galley(pos2(in_x, rect.center().y - g_in.size().y / 2.0 + dy_in), g_in, in_c);
+            }
+        };
+
         let mut tucked_now = tucked;
         let mut expanded_now = expanded;
 
@@ -1119,33 +1166,7 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
                         pos2(thumb.right() + 10.0, row.top()),
                         pos2(eq_center.x - 14.0, row.bottom()),
                     );
-                    let e = ease(rise_q);
-                    let p = ui.painter().with_clip_rect(content);
-                    if !prev_text.is_empty() && rise_q < 1.0 {
-                        let out_c = Color32::from_rgba_unmultiplied(230, 240, 245, ((1.0 - e) * 220.0) as u8);
-                        p.text(content.center() - vec2(0.0, e * 11.0), egui::Align2::CENTER_CENTER, &prev_text, theme::semibold(13.5), out_c);
-                    }
-
-                    let dy_in = (1.0 - e) * 11.0;
-                    if let Some(c) = &active_cue
-                        && c.shot.text == cur_text
-                        && rise_q >= 0.99
-                    {
-                        let sung = sung_chars(&c.shot, c.t);
-                        let g_dim = p.layout_no_wrap(cur_text.clone(), theme::semibold(13.5), Color32::from_rgb(155, 170, 185));
-                        let text_pos = content.center() - g_dim.size() / 2.0;
-                        p.galley(text_pos, g_dim.clone(), Color32::from_rgb(155, 170, 185));
-                        let (_, edge_x) = lit_edge(&g_dim, sung);
-                        let g_lit = p.layout_no_wrap(cur_text.clone(), theme::semibold(13.5), Color32::WHITE);
-                        let lit_clip = Rect::from_min_max(
-                            content.min,
-                            pos2((text_pos.x + edge_x + 1.0).clamp(content.left(), content.right()), content.bottom()),
-                        );
-                        p.with_clip_rect(lit_clip).galley(text_pos, g_lit, Color32::WHITE);
-                    } else {
-                        let in_c = Color32::from_rgba_unmultiplied(255, 255, 255, (e * 255.0).round() as u8);
-                        p.text(content.center() + vec2(0.0, dy_in), egui::Align2::CENTER_CENTER, &cur_text, theme::semibold(13.5), in_c);
-                    }
+                    draw_notch_lyric(&ui.painter().with_clip_rect(content), content, 13.5, true);
 
                     let body_rect = Rect::from_min_max(pill.min, pos2(tuck_rect.left() - 2.0, pill.bottom()));
                     let hit = ui.interact(body_rect, ui.id().with("notch-expand"), Sense::click())
@@ -1186,8 +1207,9 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
                                 text_at(ui, ui.cursor().min, &artist, theme::regular(12.0), Color32::from_rgb(148, 163, 184), info_w);
                                 ui.add_space(16.0);
                             }
-                            if let Some(l) = &lyric {
-                                text_at(ui, ui.cursor().min, l, theme::semibold(12.0), mint, info_w);
+                            if lyric.is_some() {
+                                let (lyr_r, _) = ui.allocate_exact_size(vec2(info_w, 16.0), Sense::hover());
+                                draw_notch_lyric(&ui.painter().with_clip_rect(lyr_r), lyr_r, 12.0, false);
                             }
                         });
                     });
@@ -1391,7 +1413,7 @@ fn timed(app: &mut App, id: &str, set: &crate::lyrics::LyricsSet, now: f64) -> O
         Some(h) => app.mix_hold_pos(h) as f64 - app.audio.status.latency().as_secs_f64(),
         None => app.audio.status.position_smooth().as_secs_f64() - app.audio.status.latency().as_secs_f64(),
     };
-    let pos = app.lyric_clock.tick(pos, playing, now);
+    let pos = app.notch_clock.tick(pos, playing, now);
     let t = 1000.0 * (pos - app.lyric_prefs.offset(id, p, rich));
     // A gap keeps the line before it on screen rather than blanking the band.
     let (index, l) = lyrics.lines.iter().enumerate().filter(|(_, l)| !l.instrumental && !l.text.trim().is_empty() && l.start as f64 <= t).next_back()?;
@@ -1418,7 +1440,8 @@ fn shot(l: &crate::lyrics::Line, words: bool) -> Shot {
         }
     }
     if out.is_empty() {
-        out.push((0, chars, l.start as f64, 0.0));
+        let dur = (l.dur as f64).clamp(1400.0, 4800.0) * 0.88;
+        out.push((0, chars, l.start as f64, dur));
     }
     Shot { text: l.text.clone(), words: out }
 }
