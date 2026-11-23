@@ -1,0 +1,35 @@
+name: Release Whis lyrics notch
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/release-notch.yml']
+permissions:
+  actions: read
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Verify finished build and publish portable ZIP
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          run=45098301759
+          sha=d4ba2d05090259f808148102e4f1b49965065718
+          gh run watch "$run" --repo "$REPO" --exit-status --interval 30 || {
+            # Fine-grained tokens may lack checks access for watch; use the Actions API.
+            until [[ $(gh api "repos/$REPO/actions/runs/$run" --jq .status) == completed ]]; do sleep 20; done
+          }
+          gh api "repos/$REPO/actions/runs/$run" | jq -e --arg sha "$sha" '.head_sha==$sha and .conclusion=="success"'
+          id=$(gh api "repos/$REPO/actions/runs/$run/artifacts" --jq '.artifacts[] | select(.name=="BitChord-x-Whis-Windows-x64" and .expired==false) | .id')
+          asset=BitChord-x-Whis-Notch-Windows-x64.zip
+          gh api "repos/$REPO/actions/artifacts/$id/zip" > "$asset"
+          unzip -tq "$asset"
+          unzip -Z1 "$asset" | grep -Fx bitchord.exe
+          gh release create v2.0.1-whis.2 "$asset" --repo "$REPO" --target "$sha" --title "BitChord x Whis · Lyrics Notch for Windows" --notes "A compact, optional lyrics bar at the top of your screen. Turn on **Settings → Appearance → Lyrics notch**. The bar follows synced lyrics and offers previous, play/pause, next, and BitChord volume. Use **Hide** to dismiss it. The setting is remembered across launches.
+
+          Download the Windows x64 ZIP below, extract it, and run **bitchord.exe**. Based on BitChord PC 2.0.1."
