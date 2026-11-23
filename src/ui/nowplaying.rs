@@ -142,6 +142,18 @@ fn body(app: &mut App, ui: &mut Ui, now: f64) {
             app.set_fullscreen(ui.ctx(), false);
         }
     }
+    hui.add_space(8.0);
+    if widgets::pill(&mut hui, "Side Lyrics", Some(icon::SHRINK), false)
+        .on_hover_text("Dock lyrics to side panel so you can browse songs")
+        .clicked()
+    {
+        app.np_open = false;
+        if app.fullscreen {
+            app.set_fullscreen(ui.ctx(), false);
+        }
+        app.lyrics_drawer = true;
+        app.queue_open = false;
+    }
     hui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
         ui.add_space(super::titlebar::right_gap(ui.ctx(), ui.max_rect(), 0.0));
         // Its actions (like, download, share…) are for what's heard: a song version

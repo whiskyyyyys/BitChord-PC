@@ -475,6 +475,7 @@ pub struct App {
     np_open: bool,
     np_tab: NpTab,
     queue_open: bool,
+    pub(super) lyrics_drawer: bool,
     fullscreen: bool,
     /// The mini player: the window shrunk to a strip.
     mini: mini::Mini,
@@ -806,6 +807,7 @@ impl App {
             np_open: false,
             np_tab: if get("np_art").is_some_and(|v| v == "1") { NpTab::Art } else { NpTab::Lyrics },
             queue_open: false,
+            lyrics_drawer: false,
             fullscreen: false,
             mini: mini::Mini::load(get),
             lyrics: None,
@@ -1293,7 +1295,7 @@ impl eframe::App for App {
             if playing || self.buffering {
                 ctx.request_repaint_after(Duration::from_millis(250));
             }
-        } else if self.np_open && playing && !self.mini.busy() {
+        } else if (self.np_open || self.lyrics_drawer) && playing && !self.mini.busy() {
             ctx.request_repaint_after(Duration::from_millis(33));
         } else if playing && self.mini.showing() && self.mini.lyrics {
             // The band's line lights word by word; four frames a second reads as a lag.
@@ -1392,13 +1394,21 @@ impl eframe::App for App {
                 .show_separator_line(false)
                 .show(ui, |ui| shell::sidebar(self, ui));
             let section = ui.available_rect_before_wrap();
-            let q = theme::anim_bool(&ctx, "queue-drawer", self.queue_open && !self.np_open, 0.25);
+            let right_open = (self.queue_open || self.lyrics_drawer) && !self.np_open;
+            let q = theme::anim_bool(&ctx, "queue-drawer", right_open, 0.25);
             if q > 0.01 {
+                let w = if self.lyrics_drawer { 380.0 } else { 340.0 };
                 egui::Panel::right("queue").resizable(false)
-                    .exact_size(340.0 * q)
-                    .frame(egui::Frame::new().fill(theme::panel(0.42)).inner_margin(egui::Margin::symmetric(14, 16)))
+                    .exact_size(w * q)
+                    .frame(egui::Frame::new().fill(theme::panel(0.46)).inner_margin(egui::Margin::symmetric(14, 16)))
                     .show_separator_line(false)
-                    .show(ui, |ui| shell::queue_drawer(self, ui));
+                    .show(ui, |ui| {
+                        if self.lyrics_drawer {
+                            shell::lyrics_drawer(self, ui, now);
+                        } else {
+                            shell::queue_drawer(self, ui);
+                        }
+                    });
             }
             let main_right = ui.available_rect_before_wrap().right();
             egui::CentralPanel::default()

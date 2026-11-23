@@ -907,13 +907,13 @@ fn cue(app: &mut App, now: f64) -> Option<Cue> {
 
 pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
     const CANVAS_W: f32 = 640.0;
-    const CANVAS_H: f32 = 164.0;
+    const CANVAS_H: f32 = 168.0;
 
     let expanded_key = egui::Id::unique("whis-notch-expanded");
     let tucked_key = egui::Id::unique("whis-notch-tucked");
     let peek_hover_key = egui::Id::unique("whis-notch-peek-hover");
-    let anim_w_id = egui::Id::unique("whis-notch-cur-w");
-    let anim_h_id = egui::Id::unique("whis-notch-cur-h");
+    let compact_w_id = egui::Id::unique("whis-notch-compact-w");
+    let curve_id = egui::Id::unique("whis-notch-curve");
     let lyric_anim_id = egui::Id::unique("whis-notch-lyric-anim");
 
     let tucked = ctx.data(|d| d.get_temp::<bool>(tucked_key)).unwrap_or(false);
@@ -921,7 +921,6 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
     let peek_hovered = ctx.data(|d| d.get_temp::<bool>(peek_hover_key)).unwrap_or(false);
 
     let now = ctx.input(|i| i.time);
-    let dt = ctx.input(|i| i.stable_dt).clamp(0.001, 0.05);
     let track = app.playing_track().cloned().or_else(|| app.current().cloned());
     let active_cue = cue(app, now);
     let lyric = active_cue.as_ref().map(|c| c.shot.text.clone());
@@ -945,29 +944,49 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
     let rise_q = ((now - changed_at) / 0.26).clamp(0.0, 1.0) as f32;
     let lyric_animating = rise_q < 1.0;
 
-    // Quantize measured width in 10px steps so the pill stretches smoothly without micro-jitter.
+    // Quantize to 16px steps with 20px shrink hysteresis so short words don't pump the pill.
     let measured_w = ctx.fonts_mut(|f| {
         f.layout_no_wrap(compact_text.clone(), theme::semibold(13.5), Color32::WHITE).size().x
     });
-    let compact_w = ((measured_w / 10.0).ceil() * 10.0 + 114.0).clamp(236.0, 608.0);
+    let quantized_w = ((measured_w / 16.0).ceil() * 16.0 + 118.0).clamp(268.0, 596.0);
+    let prev_compact_w = ctx.data(|d| d.get_temp::<f32>(compact_w_id)).unwrap_or(quantized_w);
+    let compact_w = if quantized_w < prev_compact_w && (prev_compact_w - quantized_w) < 20.0 {
+        prev_compact_w
+    } else {
+        quantized_w
+    };
+    ctx.data_mut(|d| d.insert_temp(compact_w_id, compact_w));
+
     let (target_w, target_h) = if tucked {
-        if peek_hovered { (148.0, 13.0) } else { (136.0, 10.0) }
+        if peek_hovered { (188.0, 26.0) } else { (176.0, 24.0) }
     } else if expanded {
-        (436.0, 154.0)
+        (440.0, 158.0)
     } else {
         (compact_w, 38.0)
     };
 
-    let prev_w = ctx.data(|d| d.get_temp::<f32>(anim_w_id)).unwrap_or(target_w);
-    let prev_h = ctx.data(|d| d.get_temp::<f32>(anim_h_id)).unwrap_or(target_h);
-    let ease_k = 1.0 - (-dt * 14.0).exp();
-    let cur_w = if (target_w - prev_w).abs() < 0.4 { target_w } else { prev_w + (target_w - prev_w) * ease_k };
-    let cur_h = if (target_h - prev_h).abs() < 0.4 { target_h } else { prev_h + (target_h - prev_h) * ease_k };
-    ctx.data_mut(|d| {
-        d.insert_temp(anim_w_id, cur_w);
-        d.insert_temp(anim_h_id, cur_h);
+    // Smooth 0.30s cubic S-curve transition (zero velocity at start & end, zero jitter).
+    let (mut from_w, mut to_w, mut from_h, mut to_h, mut start_time) = ctx.data(|d| {
+        d.get_temp::<(f32, f32, f32, f32, f64)>(curve_id)
+            .unwrap_or((target_w, target_w, target_h, target_h, now - 1.0))
     });
-    let animating = (target_w - cur_w).abs() > 0.4 || (target_h - cur_h).abs() > 0.4;
+    let u_prev = ((now - start_time) / 0.30).clamp(0.0, 1.0) as f32;
+    let s_prev = u_prev * u_prev * (3.0 - 2.0 * u_prev);
+    let cur_w_now = from_w + (to_w - from_w) * s_prev;
+    let cur_h_now = from_h + (to_h - from_h) * s_prev;
+    if (target_w - to_w).abs() > 1.0 || (target_h - to_h).abs() > 1.0 {
+        from_w = cur_w_now;
+        from_h = cur_h_now;
+        to_w = target_w;
+        to_h = target_h;
+        start_time = now;
+        ctx.data_mut(|d| d.insert_temp(curve_id, (from_w, to_w, from_h, to_h, start_time)));
+    }
+    let u = ((now - start_time) / 0.30).clamp(0.0, 1.0) as f32;
+    let s = u * u * (3.0 - 2.0 * u);
+    let cur_w = from_w + (to_w - from_w) * s;
+    let cur_h = from_h + (to_h - from_h) * s;
+    let animating = u < 1.0;
 
     let size = vec2(CANVAS_W, CANVAS_H);
     let scale = ctx.pixels_per_point();
@@ -998,27 +1017,32 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
         ui.visuals_mut().override_text_color = Some(Color32::from_rgb(240, 246, 250));
         let bounds = ui.max_rect();
         let pill = Rect::from_min_size(
-            pos2((bounds.center().x - cur_w / 2.0).round(), bounds.top()),
-            vec2(cur_w.round(), cur_h.round()),
+            pos2(bounds.center().x - cur_w / 2.0, bounds.top()),
+            vec2(cur_w, cur_h),
         );
         let mint = Color32::from_rgb(102, 235, 203);
-        let bg = Color32::from_rgb(5, 7, 10);
-        let rim = Color32::from_rgba_unmultiplied(255, 255, 255, 20);
-        let bottom_r: u8 = if tucked { 6 } else if expanded { 24 } else { 19 };
+        let bg = if tucked { Color32::from_rgb(6, 9, 14) } else { Color32::from_rgb(5, 7, 10) };
+        let rim = if tucked {
+            Color32::from_rgba_unmultiplied(102, 235, 203, if peek_hovered { 110 } else { 55 })
+        } else {
+            Color32::from_rgba_unmultiplied(255, 255, 255, 22)
+        };
+        let bottom_r: u8 = if tucked { 13 } else if expanded { 24 } else { 19 };
         let radius = egui::CornerRadius { nw: 0, ne: 0, sw: bottom_r, se: bottom_r };
 
-        clip_notch_region(ui.ctx(), pill, bottom_r as f32);
+        clip_notch_region(ui.ctx(), pill, bounds, animating);
         ui.painter().rect_filled(pill, radius, bg);
         ui.painter().rect_stroke(pill, radius, egui::Stroke::new(0.85, rim), egui::StrokeKind::Inside);
 
         let playing = app.playing();
-        let draw_eq = |ui: &Ui, center: Pos2| {
-            for i in 0..4 {
+        let draw_eq = |ui: &Ui, center: Pos2, bars: usize, max_h: f32| {
+            let mid = (bars as f32 - 1.0) / 2.0;
+            for i in 0..bars {
                 let phase = now * 8.2 + (i as f64) * 1.15;
-                let h = if playing { 4.5 + 8.5 * ((phase.sin() * 0.5 + 0.5) as f32) } else { 3.5 };
-                let x = center.x + (i as f32 - 1.5) * 4.0;
-                let bar = Rect::from_center_size(pos2(x, center.y), vec2(2.2, h));
-                ui.painter().rect_filled(bar, 1.1, mint);
+                let h = if playing { 3.5 + max_h * ((phase.sin() * 0.5 + 0.5) as f32) } else { 3.2 };
+                let x = center.x + (i as f32 - mid) * 3.8;
+                let bar = Rect::from_center_size(pos2(x, center.y), vec2(2.1, h));
+                ui.painter().rect_filled(bar, 1.05, mint);
             }
         };
 
@@ -1031,9 +1055,25 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
                     .on_hover_cursor(egui::CursorIcon::PointingHand)
                     .on_hover_text("Show WhisMuno Notch");
                 ctx.data_mut(|d| d.insert_temp(peek_hover_key, hit.hovered()));
-                let bar = Rect::from_center_size(pill.center(), vec2(44.0, 3.0));
-                let bar_color = mint.gamma_multiply(if hit.hovered() { 1.0 } else { 0.72 });
-                ui.painter().rect_filled(bar, 1.5, bar_color);
+
+                let eq_pos = pos2(pill.left() + 18.0, pill.center().y);
+                if playing {
+                    draw_eq(ui, eq_pos, 3, 6.0);
+                } else {
+                    icon_at(ui, eq_pos, icon::MUSIC, 11.0, mint);
+                }
+                let chev_pos = pos2(pill.right() - 16.0, pill.center().y);
+                icon_at(ui, chev_pos, icon::CHEVRON_DOWN, 13.0, mint);
+
+                let label_rect = Rect::from_min_max(pos2(eq_pos.x + 10.0, pill.top()), pos2(chev_pos.x - 10.0, pill.bottom()));
+                let peek_label = track.as_ref().map(|tr| tr.title.as_str()).unwrap_or("WhisMuno");
+                ui.painter().with_clip_rect(label_rect).text(
+                    label_rect.center(),
+                    egui::Align2::CENTER_CENTER,
+                    peek_label,
+                    theme::semibold(11.5),
+                    Color32::from_rgb(230, 244, 240),
+                );
                 if hit.clicked() {
                     tucked_now = false;
                     expanded_now = false;
@@ -1044,30 +1084,36 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
             if !expanded {
                 egui::Frame::new().inner_margin(egui::Margin::symmetric(12, 6)).show(ui, |ui| {
                     let row = ui.available_rect_before_wrap();
-                    let thumb = Rect::from_center_size(pos2(row.left() + 11.0, row.center().y), vec2(22.0, 22.0));
+                    let thumb = Rect::from_center_size(pos2(row.left() + 12.0, row.center().y), vec2(22.0, 22.0));
                     match &track {
                         Some(tr) => paint_cover(ui, thumb, &tr.thumbs, 7.0, 1.0),
-                        None => glyphs::draw(ui, thumb.center(), 14.0, glyphs::WAVE, mint),
+                        None => icon_at(ui, thumb.center(), icon::MUSIC, 14.0, mint),
                     }
                     if playing {
                         ui.painter().rect_stroke(thumb, 7.0, egui::Stroke::new(1.0, mint.gamma_multiply(0.55)), egui::StrokeKind::Outside);
                     }
 
-                    let tuck_rect = Rect::from_center_size(pos2(row.right() - 10.0, row.center().y), vec2(20.0, 20.0));
+                    let tuck_rect = Rect::from_center_size(pos2(row.right() - 11.0, row.center().y), vec2(22.0, 22.0));
                     let tuck_hit = ui.interact(tuck_rect, ui.id().with("notch-tuck-btn"), Sense::click())
                         .on_hover_cursor(egui::CursorIcon::PointingHand)
-                        .on_hover_text("Hide to top edge");
+                        .on_hover_text("Hide to mini pill");
                     if tuck_hit.hovered() {
-                        ui.painter().rect_filled(tuck_rect, 10.0, Color32::from_rgba_unmultiplied(255, 255, 255, 22));
+                        ui.painter().rect_filled(tuck_rect, 11.0, Color32::from_rgba_unmultiplied(255, 255, 255, 24));
                     }
-                    ui.painter().text(tuck_rect.center(), egui::Align2::CENTER_CENTER, "⌃", theme::semibold(12.5), Color32::from_rgb(180, 196, 210));
+                    icon_at(
+                        ui,
+                        tuck_rect.center(),
+                        icon::CHEVRON_UP,
+                        13.5,
+                        if tuck_hit.hovered() { mint } else { Color32::from_rgb(180, 196, 210) },
+                    );
                     if tuck_hit.clicked() {
                         tucked_now = true;
                         expanded_now = false;
                     }
 
-                    let eq_center = pos2(tuck_rect.left() - 14.0, row.center().y);
-                    draw_eq(ui, eq_center);
+                    let eq_center = pos2(tuck_rect.left() - 16.0, row.center().y);
+                    draw_eq(ui, eq_center, 4, 8.5);
 
                     let content = Rect::from_min_max(
                         pos2(thumb.right() + 10.0, row.top()),
@@ -1115,7 +1161,7 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
             }
 
             // Expanded Dynamic Island Media Card
-            egui::Frame::new().inner_margin(egui::Margin::symmetric(16, 10)).show(ui, |ui| {
+            egui::Frame::new().inner_margin(egui::Margin::symmetric(16, 12)).show(ui, |ui| {
                 ui.horizontal(|ui| {
                     let art_size = 52.0;
                     let (art_rect, _) = ui.allocate_exact_size(vec2(art_size, art_size), Sense::hover());
@@ -1127,7 +1173,7 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
                         }
                     }
                     ui.add_space(10.0);
-                    let info_w = (ui.available_width() - 80.0).max(60.0);
+                    let info_w = (ui.available_width() - 88.0).max(60.0);
                     ui.allocate_ui(vec2(info_w, art_size), |ui| {
                         ui.vertical(|ui| {
                             let (title, artist) = match &track {
@@ -1146,26 +1192,26 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
                         });
                     });
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                        let top_btn = |ui: &mut Ui, txt: &str, tip: &str| {
-                            let (r, hit) = ui.allocate_exact_size(vec2(22.0, 22.0), Sense::click());
+                        let top_btn = |ui: &mut Ui, glyph: char, sz: f32, tip: &str| {
+                            let (r, hit) = ui.allocate_exact_size(vec2(24.0, 24.0), Sense::click());
                             let fill = if hit.hovered() {
-                                Color32::from_rgba_unmultiplied(255, 255, 255, 26)
+                                Color32::from_rgba_unmultiplied(255, 255, 255, 28)
                             } else {
                                 Color32::from_rgba_unmultiplied(255, 255, 255, 12)
                             };
-                            ui.painter().rect_filled(r, 11.0, fill);
-                            ui.painter().text(r.center(), egui::Align2::CENTER_CENTER, txt, theme::semibold(12.5), Color32::from_rgb(203, 213, 225));
+                            ui.painter().rect_filled(r, 12.0, fill);
+                            icon_at(ui, r.center(), glyph, sz, if hit.hovered() { Color32::WHITE } else { Color32::from_rgb(203, 213, 225) });
                             hit.on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text(tip).clicked()
                         };
-                        if top_btn(ui, "×", "Turn off notch") {
+                        if top_btn(ui, icon::X, 14.0, "Turn off notch") {
                             app.desktop_notch = false;
                         }
                         ui.add_space(4.0);
-                        if top_btn(ui, "−", "Collapse to lyrics") {
+                        if top_btn(ui, icon::SHRINK, 13.5, "Collapse to compact lyrics") {
                             expanded_now = false;
                         }
                         ui.add_space(4.0);
-                        if top_btn(ui, "⌃", "Tuck to top bar") {
+                        if top_btn(ui, icon::CHEVRON_UP, 14.0, "Hide to mini pill") {
                             tucked_now = true;
                             expanded_now = false;
                         }
@@ -1201,35 +1247,63 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
                     ui.label(egui::RichText::new(fmt_time(dur_s as u32)).size(10.5).color(Color32::from_rgb(148, 163, 184)));
                 });
 
-                // Modern playback controls + volume + live equalizer
-                ui.add_space(6.0);
+                // Modern vector transport controls + mute & custom volume bar + live equalizer
+                ui.add_space(8.0);
                 ui.horizontal(|ui| {
-                    let control = |ui: &mut Ui, label: &str, glyph: &'static [u8], accent: bool| {
-                        let sz = if accent { vec2(34.0, 30.0) } else { vec2(30.0, 28.0) };
-                        let (r, hit) = ui.allocate_exact_size(sz, Sense::click());
+                    let control = |ui: &mut Ui, label: &str, glyph: char, sz: f32, accent: bool| {
+                        let box_sz = if accent { vec2(38.0, 30.0) } else { vec2(32.0, 30.0) };
+                        let (r, hit) = ui.allocate_exact_size(box_sz, Sense::click());
                         if accent {
-                            ui.painter().rect_filled(r, 15.0, if hit.hovered() { mint } else { mint.gamma_multiply(0.88) });
-                            glyphs::draw(ui, r.center(), 15.0, glyph, Color32::from_rgb(6, 12, 16));
+                            ui.painter().rect_filled(r, 15.0, if hit.hovered() { mint } else { mint.gamma_multiply(0.9) });
+                            icon_at(ui, r.center(), glyph, sz, Color32::from_rgb(6, 12, 16));
                         } else {
-                            if hit.hovered() {
-                                ui.painter().rect_filled(r, 10.0, Color32::from_rgba_unmultiplied(255, 255, 255, 20));
-                            }
-                            glyphs::draw(ui, r.center(), 15.0, glyph, Color32::WHITE);
+                            let fill = if hit.hovered() {
+                                Color32::from_rgba_unmultiplied(255, 255, 255, 24)
+                            } else {
+                                Color32::from_rgba_unmultiplied(255, 255, 255, 10)
+                            };
+                            ui.painter().rect_filled(r, 12.0, fill);
+                            icon_at(ui, r.center(), glyph, sz, Color32::WHITE);
                         }
                         hit.on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text(label).clicked()
                     };
-                    if control(ui, "Previous", glyphs::PREVIOUS, false) { app.prev(); }
+                    if control(ui, "Previous", icon::SKIP_BACK, 15.0, false) { app.prev(); }
                     ui.add_space(4.0);
-                    if control(ui, if playing { "Pause" } else { "Play" }, if playing { glyphs::PAUSE } else { glyphs::PLAY }, true) { app.toggle(); }
+                    if control(ui, if playing { "Pause" } else { "Play" }, if playing { icon::PAUSE } else { icon::PLAY }, 16.0, true) { app.toggle(); }
                     ui.add_space(4.0);
-                    if control(ui, "Next", glyphs::NEXT, false) { app.next(); }
-                    ui.add_space(12.0);
-                    let mut v = app.audio.volume();
-                    ui.add_sized(vec2(108.0, 18.0), egui::Slider::new(&mut v, 0.0..=1.0).show_value(false));
-                    if (v - app.audio.volume()).abs() > 0.001 { app.audio.set_volume(v); }
+                    if control(ui, "Next", icon::SKIP_FORWARD, 15.0, false) { app.next(); }
+                    ui.add_space(10.0);
+
+                    let vol = app.audio.volume();
+                    let vol_glyph = if vol <= 0.001 { icon::VOLUME_X } else if vol < 0.5 { icon::VOLUME_1 } else { icon::VOLUME_2 };
+                    let (mute_r, mute_hit) = ui.allocate_exact_size(vec2(26.0, 26.0), Sense::click());
+                    if mute_hit.hovered() {
+                        ui.painter().rect_filled(mute_r, 13.0, Color32::from_rgba_unmultiplied(255, 255, 255, 20));
+                    }
+                    icon_at(ui, mute_r.center(), vol_glyph, 14.5, if mute_hit.hovered() { Color32::WHITE } else { Color32::from_rgb(180, 196, 210) });
+                    if mute_hit.on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text("Mute / Unmute").clicked() {
+                        super::shell::toggle_mute(app, ui.ctx());
+                    }
+
+                    ui.add_space(4.0);
+                    let (vol_hit_r, vol_hit) = ui.allocate_exact_size(vec2(96.0, 16.0), Sense::click_and_drag());
+                    let vol_track = Rect::from_center_size(vol_hit_r.center(), vec2(96.0, 4.0));
+                    ui.painter().rect_filled(vol_track, 2.0, Color32::from_rgba_unmultiplied(255, 255, 255, 24));
+                    let vol_fill = Rect::from_min_size(vol_track.min, vec2(vol_track.width() * vol.clamp(0.0, 1.0), 4.0));
+                    ui.painter().rect_filled(vol_fill, 2.0, mint);
+                    if vol_hit.hovered() || vol_hit.dragged() {
+                        ui.painter().circle_filled(pos2(vol_fill.right(), vol_track.center().y), 4.5, Color32::WHITE);
+                    }
+                    if (vol_hit.clicked() || vol_hit.dragged())
+                        && let Some(p) = vol_hit.interact_pointer_pos()
+                    {
+                        app.audio.set_volume(((p.x - vol_track.left()) / vol_track.width()).clamp(0.0, 1.0));
+                    }
+                    let _ = vol_hit.on_hover_cursor(egui::CursorIcon::PointingHand);
+
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let (eq_r, _) = ui.allocate_exact_size(vec2(22.0, 20.0), Sense::hover());
-                        draw_eq(ui, eq_r.center());
+                        draw_eq(ui, eq_r.center(), 4, 8.5);
                     });
                 });
             });
@@ -1252,38 +1326,57 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
 }
 
 #[cfg(windows)]
-fn clip_notch_region(ctx: &egui::Context, pill: Rect, radius: f32) {
-    use windows::Win32::Graphics::Gdi::{CreateRoundRectRgn, SetWindowRgn};
+fn clip_notch_region(ctx: &egui::Context, pill: Rect, canvas: Rect, animating: bool) {
+    use windows::Win32::Graphics::Dwm::{DWMWINDOWATTRIBUTE, DwmSetWindowAttribute};
+    use windows::Win32::Graphics::Gdi::{CreateRectRgn, SetWindowRgn};
     use windows::Win32::UI::WindowsAndMessaging::FindWindowW;
     use windows::core::w;
 
-    let ppp = ctx.pixels_per_point();
-    let left_px = (pill.left() * ppp).round() as i32;
-    let right_px = (pill.right() * ppp).round() as i32;
-    let bottom_px = (pill.bottom() * ppp).round() as i32;
-    let r_px = (radius * ppp).round().max(1.0) as i32;
-    let state = (left_px, right_px, bottom_px, r_px);
-
-    let key = egui::Id::unique("whis-notch-rgn");
-    if ctx.data(|d| d.get_temp::<(i32, i32, i32, i32)>(key)) == Some(state) {
+    // SAFETY: finds our own notch viewport by its title and sets DWM borderless + hit region.
+    let Ok(hwnd) = (unsafe { FindWindowW(None, w!("Whis Notch")) }) else { return };
+    if hwnd.is_invalid() {
         return;
     }
-    // SAFETY: finds our own notch viewport by its title and clips its OS window region.
-    if let Ok(hwnd) = unsafe { FindWindowW(None, w!("Whis Notch")) }
-        && !hwnd.is_invalid()
-    {
-        let region = unsafe { CreateRoundRectRgn(left_px, -r_px, right_px + 1, bottom_px + 1, r_px * 2, r_px * 2) };
-        if !region.is_invalid() {
-            unsafe {
-                let _ = SetWindowRgn(hwnd, Some(region), true);
-            }
-            ctx.data_mut(|d| d.insert_temp(key, state));
+
+    let dwm_key = egui::Id::unique("whis-notch-dwm-hwnd");
+    let hwnd_raw = hwnd.0 as isize;
+    if ctx.data(|d| d.get_temp::<isize>(dwm_key)) != Some(hwnd_raw) {
+        let border_none: u32 = 0xFFFFFFFE;
+        let corner_none: u32 = 1;
+        unsafe {
+            let _ = DwmSetWindowAttribute(hwnd, DWMWINDOWATTRIBUTE(34), &border_none as *const u32 as *const _, size_of::<u32>() as u32);
+            let _ = DwmSetWindowAttribute(hwnd, DWMWINDOWATTRIBUTE(33), &corner_none as *const u32 as *const _, size_of::<u32>() as u32);
         }
+        ctx.data_mut(|d| d.insert_temp(dwm_key, hwnd_raw));
+    }
+
+    let ppp = ctx.pixels_per_point();
+    let state = if animating {
+        (0, 0, (canvas.width() * ppp).round() as i32, (canvas.height() * ppp).round() as i32)
+    } else {
+        (
+            (pill.left() * ppp).round() as i32 - 2,
+            0,
+            (pill.right() * ppp).round() as i32 + 2,
+            (pill.bottom() * ppp).round() as i32 + 2,
+        )
+    };
+
+    let rgn_key = egui::Id::unique("whis-notch-rgn");
+    if ctx.data(|d| d.get_temp::<(i32, i32, i32, i32)>(rgn_key)) == Some(state) {
+        return;
+    }
+    let region = unsafe { CreateRectRgn(state.0, state.1, state.2, state.3) };
+    if !region.is_invalid() {
+        unsafe {
+            let _ = SetWindowRgn(hwnd, Some(region), false);
+        }
+        ctx.data_mut(|d| d.insert_temp(rgn_key, state));
     }
 }
 
 #[cfg(not(windows))]
-fn clip_notch_region(_: &egui::Context, _: Rect, _: f32) {}
+fn clip_notch_region(_: &egui::Context, _: Rect, _: Rect, _: bool) {}
 
 fn timed(app: &mut App, id: &str, set: &crate::lyrics::LyricsSet, now: f64) -> Option<(usize, Shot, f64)> {
     use crate::lyrics::Sync;

@@ -21,8 +21,9 @@
 ## Features
 
 - **Dynamic Island Lyrics Notch** — open **Settings → Notch** to enable the top-docked OLED Dynamic Island bar.
-  - **Compact mode**: mini album cover, auto-width centered lyrics with smooth rising & word-synced highlight, 4-bar animated equalizer, and a quick **Tuck (`⌃`)** button to hide into a slim top-edge pill.
-  - **Expanded mode** (click the notch): album artwork, track & artist info, synced lyric line, seekable progress bar, **Previous / Play-Pause / Next** controls, volume slider, Tuck (`⌃`), Collapse (`−`), and Turn off (`×`).
+  - **Compact mode**: mini album cover, auto-width centered lyrics with smooth S-curve glide, rising & word-synced highlight, 4-bar animated equalizer, and a vector **Tuck** button (`⌃`) to collapse into a clean mini-capsule.
+  - **Expanded mode** (click the notch): album artwork, track & artist info, synced lyric line, seekable progress bar, crisp vector transport controls (**Previous / Play-Pause / Next**), custom mint volume bar + mute button, mini-capsule tuck, collapse, and off buttons.
+- **Dual-Mode Lyrics (Side Panel & Full Screen)** — click the **Lyrics** button in the player bar to dock synced lyrics on the right side (Spotify-style) while browsing and picking songs, or switch anytime to **Full Lyrics** (and back via **Side Lyrics**).
 - **Music and lyrics** — browse your library, play tracks, and follow word/line-synced lyrics when available.
 - **Discord Rich Presence** — displays *"Listening to WhisMuno"* with the current song and artist on your profile (including paused status when playback pauses) and recovers automatically if Discord restarts.
 - **Automatic Mandatory Updates** — checks **[WhisMuno Releases](https://github.com/whiskyyyyys/BitChord-PC/releases/latest)** automatically every 60 seconds and prompts to update & restart when a newer build is released.
@@ -31,8 +32,8 @@
 
 Download from **[Releases](https://github.com/whiskyyyyys/BitChord-PC/releases/latest)**:
 
-- **Windows Installer (`.exe`)**: download and run `WhisMuno-2.0.5-Windows-x64-Setup.exe`.
-- **Windows Portable (`.zip`)**: download `WhisMuno-2.0.5-Windows-x64-Portable.zip`, extract all files into one folder, and run `bitchord.exe`.
+- **Windows Installer (`.exe`)**: download and run `WhisMuno-2.0.6-Windows-x64-Setup.exe`.
+- **Windows Portable (`.zip`)**: download `WhisMuno-2.0.6-Windows-x64-Portable.zip`, extract all files into one folder, and run `bitchord.exe`.
 
 For Discord Rich Presence, open Discord desktop, enable activity sharing in Discord, then turn on **Settings → Connections → Discord** in WhisMuno.
 

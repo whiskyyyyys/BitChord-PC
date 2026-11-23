@@ -969,16 +969,30 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64, frosted: bool) {
         {
             app.actions.push(Action::Like(t, !liked));
         }
-        let lyrics_on = super::nowplaying::lyrics_shown(app, &ctx);
-        let r = rbtn(ui, 1, "lyrics", "Lyrics");
+        let full_lyrics = super::nowplaying::lyrics_shown(app, &ctx);
+        let lyrics_on = full_lyrics || (!app.np_open && app.lyrics_drawer);
+        let r = rbtn(ui, 1, "lyrics", "Lyrics (click: Side panel · right-click: Full screen)");
         let h = theme::anim_bool(&ctx, r.id.with("h"), r.hovered(), 0.15);
         glyphs::draw(ui, r.rect.center(), 18.0, if lyrics_on { glyphs::LYRICS } else { glyphs::LYRICS_OFF }, if lyrics_on { accent } else { ink(h) });
         if r.clicked() {
-            if lyrics_on {
-                app.np_open = false;
+            if app.np_open {
+                if full_lyrics {
+                    app.np_open = false;
+                    app.lyrics_drawer = true;
+                    app.queue_open = false;
+                } else {
+                    super::nowplaying::ask_lyrics(app, &ctx);
+                }
             } else {
-                super::nowplaying::ask_lyrics(app, &ctx);
+                app.lyrics_drawer = !app.lyrics_drawer;
+                if app.lyrics_drawer {
+                    app.queue_open = false;
+                }
             }
+        }
+        if r.secondary_clicked() {
+            app.lyrics_drawer = false;
+            super::nowplaying::ask_lyrics(app, &ctx);
         }
         let queue_open = if app.np_open { app.np_tab == NpTab::UpNext } else { app.queue_open };
         let r = rbtn(ui, 2, "queue", "Up next");
@@ -989,6 +1003,9 @@ pub fn player_bar(app: &mut App, ui: &mut Ui, now: f64, frosted: bool) {
                 app.np_tab = if queue_open { NpTab::Art } else { NpTab::UpNext };
             } else {
                 app.queue_open = !app.queue_open;
+                if app.queue_open {
+                    app.lyrics_drawer = false;
+                }
             }
         }
     } else {
@@ -1090,7 +1107,42 @@ fn volume_slider(app: &mut App, ui: &mut Ui, slider: Rect, salt: &str) {
     }
 }
 
-// ------------------------------------------------------------------ queue drawer
+// ------------------------------------------------------------------ side drawers
+
+pub fn lyrics_drawer(app: &mut App, ui: &mut Ui, now: f64) {
+    ui.horizontal(|ui| {
+        ui.label(egui::RichText::new("Lyrics").font(theme::bold(20.0)));
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.add_space(super::titlebar::right_gap(ui.ctx(), ui.max_rect(), 0.0));
+            if icon_button(ui, icon::X, 16.0, "Close side lyrics", false).clicked() {
+                app.lyrics_drawer = false;
+            }
+            ui.add_space(6.0);
+            if widgets::pill(ui, "Full", Some(icon::MAXIMIZE_2), false)
+                .on_hover_text("Open full-screen lyrics")
+                .clicked()
+            {
+                app.lyrics_drawer = false;
+                super::nowplaying::ask_lyrics(app, ui.ctx());
+            }
+        });
+    });
+    ui.add_space(8.0);
+    let rect = ui.available_rect_before_wrap();
+    let body_rect = Rect::from_min_max(
+        rect.min,
+        pos2(rect.right(), (rect.bottom() - app.bar_height() - 6.0).max(rect.top() + 80.0)),
+    );
+    if app.current().is_none() {
+        ui.allocate_ui_with_layout(body_rect.size(), egui::Layout::centered_and_justified(egui::Direction::TopDown), |ui| {
+            ui.label(egui::RichText::new("Play a song to see its lyrics").color(theme::text_dim()));
+        });
+        return;
+    }
+    let mut child = ui.new_child(egui::UiBuilder::new().max_rect(body_rect));
+    child.set_clip_rect(body_rect.intersect(ui.clip_rect()));
+    super::nowplaying::lyrics_panel(app, &mut child, body_rect, now, false);
+}
 
 pub fn queue_drawer(app: &mut App, ui: &mut Ui) {
     ui.horizontal(|ui| {
