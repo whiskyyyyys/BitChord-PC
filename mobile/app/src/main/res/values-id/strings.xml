@@ -102,10 +102,10 @@
     <string name="dolby_atmos_open_failed">Tidak dapat membuka pengaturan Dolby Atmos</string>
     <string name="update_available">Pembaruan tersedia: v%1$s</string>
     <string name="software_update">Pembaruan Perangkat Lunak</string>
-    <string name="update_available_body">bitchord %1$s tersedia untuk diunduh.</string>
-    <string name="update_downloading_body">Mengunduh bitchord %1$s…</string>
-    <string name="update_ready_body">bitchord %1$s siap dipasang.</string>
-    <string name="update_failed_body">Gagal mengunduh bitchord %1$s.</string>
+    <string name="update_available_body">WhisMuno %1$s tersedia untuk diunduh.</string>
+    <string name="update_downloading_body">Mengunduh WhisMuno %1$s…</string>
+    <string name="update_ready_body">WhisMuno %1$s siap dipasang.</string>
+    <string name="update_failed_body">Gagal mengunduh WhisMuno %1$s.</string>
     <string name="download_now">Unduh Sekarang</string>
     <string name="install_now">Pasang Sekarang</string>
     <string name="later">Nanti</string>
@@ -133,7 +133,7 @@
     <string name="widget_previous">Sebelumnya</string>
     <string name="widget_artwork">Sampul album</string>
     <string name="widget_nothing_played">Belum ada yang diputar</string>
-    <string name="widget_open_bitchord">Buka BitChord</string>
+    <string name="widget_open_bitchord">Buka WhisMuno</string>
     <string name="widget_preview_title">Judul lagu</string>
     <string name="widget_preview_artist">Artis</string>
     <string name="widget_pill_label">Sedang diputar 4×1</string>
@@ -160,7 +160,7 @@
     <string name="cancel_all">Batalkan semua</string>
     <string name="language">Bahasa</string>
     <string name="app_language">Bahasa aplikasi</string>
-    <string name="app_language_description">Pilih bahasa yang digunakan BitChord.</string>
+    <string name="app_language_description">Pilih bahasa yang digunakan WhisMuno.</string>
     <string name="english">Inggris</string>
     <string name="spanish">Spanyol</string>
     <string name="french">Prancis</string>
@@ -494,7 +494,7 @@
     <string name="biggest_day_note">Hari terbesar Anda adalah %1$s dengan %2$s waktu mendengarkan.</string>
     <string name="close_replay">Tutup Replay</string>
     <string name="couldnt_draw_picture">Tidak dapat membuat gambar</string>
-    <string name="default_replay_holder">Pendengar BitChord</string>
+    <string name="default_replay_holder">Pendengar WhisMuno</string>
     <string name="different_albums">Album yang berbeda</string>
     <string name="genres_pending">Genre akan muncul seiring bertambahnya riwayat mendengarkan Anda</string>
     <string name="hour_am">%1$d AM</string>
@@ -1342,7 +1342,7 @@
     <string name="replay_period_monthly">Bulanan</string>
     <string name="replay_period_yearly">Tahunan</string>
     <string name="replay_period_lifetime">Sepanjang masa</string>
-    <string name="onboarding_title">Jutaan lagu, streaming di BitChord</string>
+    <string name="onboarding_title">Jutaan lagu, streaming di WhisMuno</string>
     <string name="onboarding_name_prompt">Anda ingin dipanggil apa?</string>
     <string name="onboarding_name_hint">Nama Anda</string>
     <string name="onboarding_name_footer">Teman akan melihatnya saat Anda memakai Dengarkan Bersama. Anda bisa mengubahnya nanti di Pengaturan.</string>

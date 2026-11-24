@@ -164,7 +164,7 @@ pub fn sync_shortcuts(id: &'static str, data_dir: &Path) {
 fn icon_file(v: &Variant, data_dir: &Path) -> anyhow::Result<PathBuf> {
     let dir = data_dir.join("icons");
     std::fs::create_dir_all(&dir)?;
-    let path = dir.join(format!("{}-whis2.ico", v.id));
+    let path = dir.join(format!("{}-whis3.ico", v.id));
     if std::fs::read(&path).ok().as_deref() != Some(v.ico) {
         std::fs::write(&path, v.ico)?;
     }

@@ -55,10 +55,10 @@ import kotlin.math.min
 import kotlin.math.sin
 
 private val FallbackColors = listOf(
-    Color(0xFF3A1C71),
-    Color(0xFFD76D77),
-    Color(0xFF2B5876),
-    Color(0xFFFFAF7B),
+    Color(0xFF0B253A),
+    Color(0xFF66EBCB),
+    Color(0xFF0F384C),
+    Color(0xFF38BDF8),
 )
 
 /** The four mesh colours, wrapped so the backdrop can skip recomposition. */
@@ -293,18 +293,18 @@ const val MESH_CYCLE_MILLIS = 3_600
  * Music's red and wanders off from there.
  */
 val WelcomeMeshPalettes: List<MeshPalette> = listOf(
-    // Red, violet, ember.
-    MeshPalette(listOf(Color(0xFFFA2D48), Color(0xFF7B2FF7), Color(0xFFFF7A45), Color(0xFF2E1A8A))),
-    // Sunset.
-    MeshPalette(listOf(Color(0xFFFF4E8A), Color(0xFFFF9A3C), Color(0xFFE0245E), Color(0xFF6A1B9A))),
-    // Ocean.
+    // WhisMuno Mint, Aqua, Deep Ocean.
+    MeshPalette(listOf(Color(0xFF66EBCB), Color(0xFF38BDF8), Color(0xFF0D9488), Color(0xFF0A192F))),
+    // Emerald Aurora.
+    MeshPalette(listOf(Color(0xFF2DD4BF), Color(0xFF00B8D4), Color(0xFF6366F1), Color(0xFF091526))),
+    // Cyber Lagoon.
     MeshPalette(listOf(Color(0xFF1E88E5), Color(0xFF00BFA5), Color(0xFF5E35B1), Color(0xFF0D47A1))),
-    // Aurora.
-    MeshPalette(listOf(Color(0xFF00C853), Color(0xFF00B8D4), Color(0xFF7C4DFF), Color(0xFF1A237E))),
-    // Grape and rose.
-    MeshPalette(listOf(Color(0xFFD500F9), Color(0xFFFF4081), Color(0xFF651FFF), Color(0xFF4A148C))),
-    // Gold.
-    MeshPalette(listOf(Color(0xFFFFB300), Color(0xFFFF5252), Color(0xFFF06292), Color(0xFF6D2E46))),
+    // Neon Mint & Violet.
+    MeshPalette(listOf(Color(0xFF66EBCB), Color(0xFF7C4DFF), Color(0xFF00E5FF), Color(0xFF102038))),
+    // Twilight Teal.
+    MeshPalette(listOf(Color(0xFF34D399), Color(0xFF38BDF8), Color(0xFF818CF8), Color(0xFF0F172A))),
+    // Deep Aqua Glow.
+    MeshPalette(listOf(Color(0xFFA7F3D0), Color(0xFF2DD4BF), Color(0xFF0284C7), Color(0xFF082F49))),
 )
 
 /**

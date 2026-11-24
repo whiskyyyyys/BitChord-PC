@@ -251,9 +251,25 @@ impl Updater {
 
     async fn run(&self) -> anyhow::Result<State> {
         let http = client()?;
-        let feed = std::env::var("YTM_UPDATE_FEED").unwrap_or_else(|_| LATEST.to_owned());
-        let release: serde_json::Value = http.get(feed).send().await?.error_for_status()?.json().await?;
+        let feed = std::env::var("YTM_UPDATE_FEED").unwrap_or_else(|_| format!("{ALL_RELEASES}?per_page=10"));
+        let val: serde_json::Value = http.get(feed).send().await?.error_for_status()?.json().await?;
+        let suffix = asset_suffix();
+        let release = if let Some(arr) = val.as_array() {
+            arr.iter()
+                .find(|r| {
+                    r["assets"]
+                        .as_array()
+                        .is_some_and(|a| a.iter().any(|x| x["name"].as_str().is_some_and(|n| n.ends_with(suffix))))
+                })
+                .cloned()
+                .unwrap_or(serde_json::Value::Null)
+        } else {
+            val
+        };
         let tag = release["tag_name"].as_str().unwrap_or_default();
+        if tag.is_empty() {
+            return Ok(State::UpToDate);
+        }
         if let Some(body) = release["body"].as_str() {
             self.notes.lock().unwrap().insert(tag.trim_start_matches('v').to_owned(), Some(body.to_owned()));
         }
@@ -264,7 +280,6 @@ impl Updater {
         }
         let version = tag.trim_start_matches('v').to_owned();
         let portable = portable_dir().is_some();
-        let suffix = asset_suffix();
         // A release published before its installer was built: nothing to install
         // yet, so this isn't an error. The next check picks it up.
         let Some(asset) = release["assets"]

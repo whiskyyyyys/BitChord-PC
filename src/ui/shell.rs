@@ -1110,15 +1110,18 @@ fn volume_slider(app: &mut App, ui: &mut Ui, slider: Rect, salt: &str) {
 // ------------------------------------------------------------------ side drawers
 
 pub fn lyrics_drawer(app: &mut App, ui: &mut Ui, now: f64) {
+    let mint = Color32::from_rgb(102, 235, 203);
     ui.horizontal(|ui| {
-        ui.label(egui::RichText::new("Lyrics").font(theme::bold(20.0)));
+        let (dot_r, _) = ui.allocate_exact_size(vec2(8.0, 8.0), Sense::hover());
+        ui.painter().circle_filled(dot_r.center(), 4.0, mint);
+        ui.label(egui::RichText::new("Live Lyrics").font(theme::bold(19.5)));
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             ui.add_space(super::titlebar::right_gap(ui.ctx(), ui.max_rect(), 0.0));
             if icon_button(ui, icon::X, 16.0, "Close side lyrics", false).clicked() {
                 app.lyrics_drawer = false;
             }
             ui.add_space(6.0);
-            if widgets::pill(ui, "Full", Some(icon::MAXIMIZE_2), false)
+            if widgets::pill(ui, "Full Screen", Some(icon::MAXIMIZE_2), false)
                 .on_hover_text("Open full-screen lyrics")
                 .clicked()
             {
@@ -1127,7 +1130,19 @@ pub fn lyrics_drawer(app: &mut App, ui: &mut Ui, now: f64) {
             }
         });
     });
-    ui.add_space(8.0);
+    ui.add_space(6.0);
+    if let Some(tr) = app.current().cloned() {
+        let card = Rect::from_min_size(ui.cursor().min, vec2(ui.available_width().min(352.0), 46.0));
+        ui.allocate_exact_size(card.size(), Sense::hover());
+        ui.painter().rect_filled(card, 11.0, Color32::from_rgba_unmultiplied(102, 235, 203, 16));
+        ui.painter().rect_stroke(card, 11.0, egui::Stroke::new(0.8, Color32::from_rgba_unmultiplied(102, 235, 203, 44)), egui::StrokeKind::Inside);
+        let art = Rect::from_center_size(pos2(card.left() + 23.0, card.center().y), vec2(32.0, 32.0));
+        paint_cover(ui, art, &tr.thumbs, 7.0, 1.0);
+        let tw = (card.width() - 56.0).max(40.0);
+        text_at(ui, pos2(art.right() + 9.0, card.top() + 7.0), &tr.title, theme::semibold(12.8), Color32::WHITE, tw);
+        text_at(ui, pos2(art.right() + 9.0, card.top() + 24.0), &tr.artist_line(), theme::regular(11.2), mint.gamma_multiply(0.85), tw);
+        ui.add_space(8.0);
+    }
     let rect = ui.available_rect_before_wrap();
     let body_rect = Rect::from_min_max(
         pos2(rect.right() - 352.0, rect.top()),
@@ -1135,7 +1150,7 @@ pub fn lyrics_drawer(app: &mut App, ui: &mut Ui, now: f64) {
     );
     if app.current().is_none() {
         ui.allocate_ui_with_layout(body_rect.size(), egui::Layout::centered_and_justified(egui::Direction::TopDown), |ui| {
-            ui.label(egui::RichText::new("Play a song to see its lyrics").color(theme::text_dim()));
+            ui.label(egui::RichText::new("Play a song to see its synced lyrics").color(theme::text_dim()));
         });
         return;
     }

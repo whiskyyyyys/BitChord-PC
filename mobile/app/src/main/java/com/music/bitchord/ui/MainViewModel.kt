@@ -1634,8 +1634,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             // A leftover APK only means "Install Now" for the session that
             // downloaded it — see AppUpdateChecker.clearCache.
             AppUpdateChecker.clearCache(getApplication())
-            // Upstream APKs use a different application ID and signing key.
-            // Do not offer them as updates to WhisMuno.
+            AppUpdateChecker.check()
         }
     }
 

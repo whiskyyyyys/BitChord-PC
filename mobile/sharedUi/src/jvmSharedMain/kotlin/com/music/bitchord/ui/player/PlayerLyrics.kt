@@ -209,8 +209,8 @@ private fun voiceStyle(
  * it as far down as the panel does left the words ahead of the highlight hard
  * to read at a glance.
  */
-private const val UNSUNG_ALPHA = 0.45f
-private const val UNSUNG_ALPHA_STRIP = 0.55f
+private const val UNSUNG_ALPHA = 0.38f
+private const val UNSUNG_ALPHA_STRIP = 0.50f
 
 /**
  * The bloom behind the line being sung, at its very strongest.
@@ -229,14 +229,14 @@ private const val UNSUNG_ALPHA_STRIP = 0.55f
  * — so a line of quick syllables has no glow at all and a carried note lights
  * up letter by letter, which is where the light was always meant to come from.
  */
-private const val GLOW_ALPHA = 0.62f
+private const val GLOW_ALPHA = 0.78f
 
 /**
  * How far the bloom spreads off a letter. Tight, because it is a letter's worth
  * of light now rather than a word's: a wide radius on something this small is
  * a smudge behind the text instead of a glow coming off it.
  */
-private val GLOW_RADIUS = 6.dp
+private val GLOW_RADIUS = 8.dp
 
 /**
  * Room reserved inside each copy of a line for the halo to spread into.
@@ -247,7 +247,7 @@ private val GLOW_RADIUS = 6.dp
  * out identically, and the list gives the width back by taking it off its own
  * padding and row spacing.
  */
-private val GLOW_ROOM = 10.dp
+private val GLOW_ROOM = 12.dp
 
 /** Applies group alpha while leaving [outset] available for draw overflow. */
 private fun Modifier.alphaLayerWithOutset(alpha: () -> Float, outset: Dp): Modifier = drawWithCache {
@@ -325,7 +325,7 @@ private const val SUB_LYRIC_CLOSE_MS = 260
  * sung. Feathering it over roughly a character and a half is what turns the
  * cut back into a wavefront.
  */
-private val WIPE_FEATHER = 30.dp
+private val WIPE_FEATHER = 36.dp
 
 /**
  * How far the word being sung lifts off the line.
@@ -334,7 +334,7 @@ private val WIPE_FEATHER = 30.dp
  * words moving under the sweep, little enough that nothing appears to come
  * loose from the line it belongs to.
  */
-private val WORD_RISE = 2.dp
+private val WORD_RISE = 3.dp
 
 /**
  * How much further up a row is opened when it holds a word being animated
@@ -421,10 +421,10 @@ private const val SKELETON_PERIOD_MS = 1_400
 private const val BROWSING_ALPHA = 0.8f
 
 /** The playing line sits at 1; the rest sit fractionally back from it. */
-private const val INACTIVE_SCALE = 0.98f
+private const val INACTIVE_SCALE = 0.96f
 
 /** A line under a finger dips, the way a button does. */
-private const val PRESSED_SCALE = 0.96f
+private const val PRESSED_SCALE = 0.94f
 
 /**
  * The break between verses, counted out rather than marked.
@@ -948,7 +948,7 @@ private fun SweptLyricLine(
             Text(
                 text = line.text,
                 style = style,
-                color = color,
+                color = Color(0xFF66EBCB),
                 maxLines = maxLines,
                 overflow = overflow,
                 modifier = glowAlphaLayer

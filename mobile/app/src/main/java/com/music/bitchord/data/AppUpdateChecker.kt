@@ -43,7 +43,7 @@ object AppUpdateChecker {
     private const val CACHE_SUBDIR = "updates"
 
     private const val LATEST_RELEASE_URL =
-        "https://api.github.com/repos/kushagrasinghx/BitChord/releases/latest"
+        "https://api.github.com/repos/whiskyyyyys/WhisMuno/releases?per_page=10"
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -71,7 +71,11 @@ object AppUpdateChecker {
             val body = Http.client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) null else response.body?.string()
             } ?: return@runCatching
-            val release = json.parseToJsonElement(body) as? JsonObject ?: return@runCatching
+            val releases = json.parseToJsonElement(body).jsonArray
+            val release = releases
+                .mapNotNull { it as? JsonObject }
+                .firstOrNull { apkAssetUrl(it) != null }
+                ?: return@runCatching
             val tag = release["tag_name"]?.jsonPrimitive?.contentOrNull ?: return@runCatching
             val url = release["html_url"]?.jsonPrimitive?.contentOrNull ?: return@runCatching
             val apkUrl = apkAssetUrl(release)
@@ -142,7 +146,7 @@ object AppUpdateChecker {
             val dir = File(context.cacheDir, CACHE_SUBDIR).apply { mkdirs() }
             // Drop anything left over from an earlier attempt.
             dir.listFiles()?.forEach { it.delete() }
-            val target = File(dir, "bitchord-${info.version}.apk")
+            val target = File(dir, "whismuno-${info.version}.apk")
 
             val request = Request.Builder().url(url).build()
             Http.client.newCall(request).execute().use { response ->
@@ -230,9 +234,10 @@ object AppUpdateChecker {
     private data class ParsedVersion(val parts: List<Int>, val isPreRelease: Boolean)
 
     private fun parseVersion(raw: String): ParsedVersion {
+        val nums = Regex("\\d+").findAll(raw).mapNotNull { it.value.toIntOrNull() }.toList()
         val dash = raw.indexOf('-')
-        val base = if (dash >= 0) raw.substring(0, dash) else raw
-        return ParsedVersion(base.split(".").map { it.toIntOrNull() ?: 0 }, dash >= 0)
+        val pre = dash >= 0 && raw.substring(dash + 1).startsWith("beta", ignoreCase = true)
+        return ParsedVersion(nums, pre)
     }
 
     /**

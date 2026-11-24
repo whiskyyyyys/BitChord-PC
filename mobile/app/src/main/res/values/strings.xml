@@ -57,7 +57,7 @@
     <string name="auto_recents">Recent</string>
     <string name="auto_liked">Liked songs</string>
     <string name="auto_login_title">Sign in to YouTube on your phone</string>
-    <string name="auto_login_subtitle">Open BitChord on your phone to sign in</string>
+    <string name="auto_login_subtitle">Open WhisMuno on your phone to sign in</string>
     <string name="auto_empty_recents_title">No recent songs</string>
     <string name="auto_empty_recents_subtitle">Songs you play will appear here</string>
     <string name="auto_empty_quick_picks_title">No suggestions</string>
@@ -157,10 +157,10 @@
     <string name="dolby_atmos_open_failed">Couldn’t open Dolby Atmos settings</string>
     <string name="update_available">Update available: v%1$s</string>
     <string name="software_update">Software Update</string>
-    <string name="update_available_body">bitchord %1$s is available to download.</string>
-    <string name="update_downloading_body">Downloading bitchord %1$s…</string>
-    <string name="update_ready_body">bitchord %1$s is ready to install.</string>
-    <string name="update_failed_body">Couldn’t download bitchord %1$s.</string>
+    <string name="update_available_body">WhisMuno %1$s is available to download.</string>
+    <string name="update_downloading_body">Downloading WhisMuno %1$s…</string>
+    <string name="update_ready_body">WhisMuno %1$s is ready to install.</string>
+    <string name="update_failed_body">Couldn’t download WhisMuno %1$s.</string>
     <string name="download_now">Download Now</string>
     <string name="install_now">Install Now</string>
     <string name="later">Later</string>
@@ -1312,7 +1312,7 @@
     <string name="spotify_import_language_preference" translatable="false">Language preference</string>
     <string name="spotify_import_language_hint" translatable="false">e.g. Punjabi, Marathi, Korean…</string>
     <string name="spotify_library_subtitle">Your Spotify playlists</string>
-    <string name="onboarding_title">Millions of songs, stream on BitChord</string>
+    <string name="onboarding_title">Millions of songs, stream on WhisMuno</string>
     <string name="onboarding_name_prompt">What should we call you?</string>
     <string name="onboarding_name_hint">Your name</string>
     <string name="onboarding_name_footer">Friends see this when you Listen Together. You can change it later in Settings.</string>

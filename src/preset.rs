@@ -163,27 +163,27 @@ pub struct ThemeCss {
 impl Default for LyricStyle {
     fn default() -> Self {
         Self {
-            // The app's own look: the player's lyric sheet — lines already sung
-            // let go, lines still to come wait out of focus.
+            // WhisMuno signature lyric look: glowing karaoke sweep with smooth past-line
+            // context, soft letter lift, and dynamic focus blur.
             align: Align::Left,
             weight: Weight::Bold,
             font: "sfpro".into(),
-            size: 1.42,
-            line_gap: 0.6,
-            anchor: 0.43,
+            size: 1.44,
+            line_gap: 0.64,
+            anchor: 0.42,
             fill: Fill::Sweep,
-            active_alpha: 0.3,
-            inactive_alpha: 0.3,
-            falloff: 0.01,
-            min_alpha: 0.25,
-            past_alpha: Some(0.0),
+            active_alpha: 0.34,
+            inactive_alpha: 0.36,
+            falloff: 0.015,
+            min_alpha: 0.24,
+            past_alpha: Some(0.28),
             sung_color: "white".into(),
-            blur: 2.0,
-            blur_scope: BlurScope::Upcoming,
-            glow: 0.0,
-            glow_color: "white".into(),
-            active_scale: 1.05,
-            lift: 3.0,
+            blur: 1.8,
+            blur_scope: BlurScope::All,
+            glow: 0.68,
+            glow_color: "#66ebcb".into(),
+            active_scale: 1.06,
+            lift: 3.6,
             css: None,
         }
     }
@@ -366,8 +366,8 @@ impl Preset {
     fn builtin() -> Self {
         Self {
             id: DEFAULT_ID.into(),
-            name: "BitChord".into(),
-            blurb: "The app's own look: animated album-art background, left-aligned karaoke lyrics.".into(),
+            name: "WhisMuno".into(),
+            blurb: "WhisMuno's signature look: animated album-art shader, glowing mint karaoke lyrics, and frosted glass chrome.".into(),
             accent: "cover".into(),
             ..Default::default()
         }

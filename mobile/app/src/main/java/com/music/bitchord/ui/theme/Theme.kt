@@ -19,32 +19,31 @@ import androidx.compose.ui.unit.sp
 import com.music.bitchord.R
 import com.music.bitchord.data.settings.AppFont
 
-// Apple Music's signature red. No longer the primary accent, but kept for the
-// spots (Replay's rank badge) that want that specific red regardless of theme.
-val AccentRed = Color(0xFFFA2D48)
+// WhisMuno signature electric mint accent
+val AccentRed = Color(0xFF66EBCB)
 
 private val DarkColors = darkColorScheme(
-    primary = Color.White,
-    onPrimary = Color.Black,
-    background = Color.Black,
-    onBackground = Color.White,
-    surface = Color(0xFF0D0D0F),
-    onSurface = Color.White,
-    surfaceVariant = Color(0xFF1C1C1E),
-    onSurfaceVariant = Color(0xFF8E8E93),
-    outline = Color(0xFF2C2C2E),
+    primary = Color(0xFF66EBCB),
+    onPrimary = Color(0xFF041014),
+    background = Color(0xFF04070D),
+    onBackground = Color(0xFFF2F8FC),
+    surface = Color(0xFF0A101A),
+    onSurface = Color(0xFFF2F8FC),
+    surfaceVariant = Color(0xFF141F2E),
+    onSurfaceVariant = Color(0xFF94A3B8),
+    outline = Color(0xFF233246),
 )
 
 private val LightColors = lightColorScheme(
-    primary = Color.Black,
+    primary = Color(0xFF0D9488),
     onPrimary = Color.White,
-    background = Color.White,
-    onBackground = Color.Black,
-    surface = Color(0xFFF7F7F9),
-    onSurface = Color.Black,
-    surfaceVariant = Color(0xFFF2F2F7),
-    onSurfaceVariant = Color(0xFF6E6E73),
-    outline = Color(0xFFE5E5EA),
+    background = Color(0xFFF6FBF9),
+    onBackground = Color(0xFF071318),
+    surface = Color(0xFFFFFFFF),
+    onSurface = Color(0xFF071318),
+    surfaceVariant = Color(0xFFEAF4F1),
+    onSurfaceVariant = Color(0xFF52667A),
+    outline = Color(0xFFD5E6E1),
 )
 
 /**

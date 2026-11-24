@@ -907,7 +907,7 @@ fn cue(app: &mut App, now: f64) -> Option<Cue> {
 
 pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
     const CANVAS_W: f32 = 640.0;
-    const CANVAS_H: f32 = 190.0;
+    const CANVAS_H: f32 = 200.0;
 
     let expanded_key = egui::Id::unique("whis-notch-expanded");
     let tucked_key = egui::Id::unique("whis-notch-tucked");
@@ -948,7 +948,7 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
     let measured_w = ctx.fonts_mut(|f| {
         f.layout_no_wrap(compact_text.clone(), theme::semibold(13.5), Color32::WHITE).size().x
     });
-    let quantized_w = ((measured_w / 16.0).ceil() * 16.0 + 118.0).clamp(268.0, 596.0);
+    let quantized_w = ((measured_w / 16.0).ceil() * 16.0 + 132.0).clamp(292.0, 596.0);
     let prev_compact_w = ctx.data(|d| d.get_temp::<f32>(compact_w_id)).unwrap_or(quantized_w);
     let compact_w = if quantized_w < prev_compact_w && (prev_compact_w - quantized_w) < 20.0 {
         prev_compact_w
@@ -958,11 +958,11 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
     ctx.data_mut(|d| d.insert_temp(compact_w_id, compact_w));
 
     let (target_w, target_h) = if tucked {
-        if peek_hovered { (188.0, 26.0) } else { (176.0, 24.0) }
+        if peek_hovered { (194.0, 26.0) } else { (182.0, 24.0) }
     } else if expanded {
-        (440.0, 180.0)
+        (468.0, 190.0)
     } else {
-        (compact_w, 38.0)
+        (compact_w, 40.0)
     };
 
     // Smooth 0.30s cubic S-curve transition (zero velocity at start & end, zero jitter).
@@ -1014,77 +1014,104 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
             return;
         }
 
-        ui.visuals_mut().override_text_color = Some(Color32::from_rgb(240, 246, 250));
+        ui.visuals_mut().override_text_color = Some(Color32::from_rgb(242, 248, 252));
         let bounds = ui.max_rect();
         let pill = Rect::from_min_size(
             pos2(bounds.center().x - cur_w / 2.0, bounds.top()),
             vec2(cur_w, cur_h),
         );
         let mint = Color32::from_rgb(102, 235, 203);
-        let bg = Color32::from_rgb(3, 5, 8);
+        let cyan = Color32::from_rgb(56, 189, 248);
+        let bg_top = Color32::from_rgb(5, 8, 14);
+        let bg_bot = Color32::from_rgb(10, 17, 28);
         let rim = if tucked {
-            Color32::from_rgba_unmultiplied(102, 235, 203, if peek_hovered { 110 } else { 55 })
+            Color32::from_rgba_unmultiplied(102, 235, 203, if peek_hovered { 155 } else { 85 })
+        } else if expanded {
+            Color32::from_rgba_unmultiplied(102, 235, 203, 72)
         } else {
-            Color32::from_rgba_unmultiplied(255, 255, 255, 22)
+            Color32::from_rgba_unmultiplied(102, 235, 203, 52)
         };
-        let bottom_r: u8 = if tucked { 13 } else if expanded { 30 } else { 19 };
+        let bottom_r: u8 = if tucked { 13 } else if expanded { 28 } else { 20 };
         let radius = egui::CornerRadius { nw: 0, ne: 0, sw: bottom_r, se: bottom_r };
 
         clip_notch_region(ui.ctx(), pill, bounds, animating);
-        ui.painter().rect_filled(pill, radius, bg);
-        ui.painter().rect_stroke(pill, radius, egui::Stroke::new(0.85, rim), egui::StrokeKind::Inside);
+        ui.painter().rect_filled(pill, radius, bg_top);
+        // Subtle ambient gradient glow at the bottom of the Dynamic Island
+        let glow_band = Rect::from_min_max(pos2(pill.left(), pill.top() + pill.height() * 0.35), pill.max);
+        ui.painter().rect_filled(glow_band, radius, bg_bot.gamma_multiply(0.55));
+        // Double glass rim: outer mint-tinted edge + inner hairline highlight
+        ui.painter().rect_stroke(pill, radius, egui::Stroke::new(1.0, rim), egui::StrokeKind::Inside);
+        ui.painter().rect_stroke(
+            pill.shrink(1.2),
+            egui::CornerRadius { nw: 0, ne: 0, sw: bottom_r.saturating_sub(1), se: bottom_r.saturating_sub(1) },
+            egui::Stroke::new(0.6, Color32::from_rgba_unmultiplied(255, 255, 255, 16)),
+            egui::StrokeKind::Inside,
+        );
 
         let playing = app.playing();
         let draw_eq = |ui: &Ui, center: Pos2, bars: usize, max_h: f32| {
             let mid = (bars as f32 - 1.0) / 2.0;
             for i in 0..bars {
-                let phase = now * 8.2 + (i as f64) * 1.15;
-                let h = if playing { 3.5 + max_h * ((phase.sin() * 0.5 + 0.5) as f32) } else { 3.2 };
+                let phase = now * 8.6 + (i as f64) * 1.18;
+                let wave = (phase.sin() * 0.5 + 0.5) as f32;
+                let h = if playing { 3.5 + max_h * wave } else { 3.2 };
                 let x = center.x + (i as f32 - mid) * 3.8;
-                let bar = Rect::from_center_size(pos2(x, center.y), vec2(2.1, h));
-                ui.painter().rect_filled(bar, 1.05, mint);
+                let bar = Rect::from_center_size(pos2(x, center.y), vec2(2.2, h));
+                let col = theme::lerp_color(cyan, mint, wave);
+                ui.painter().rect_filled(bar, 1.1, col);
             }
         };
 
         let draw_notch_lyric = |p: &egui::Painter, rect: Rect, base_size: f32, align_center: bool| {
             let e = ease(rise_q);
             if !prev_text.is_empty() && rise_q < 1.0 {
-                let out_sz = base_size - 0.8 * e;
+                let out_sz = base_size - 0.9 * e;
                 let out_alpha = ((1.0 - e) * (1.0 - e) * 210.0) as u8;
-                let out_c = Color32::from_rgba_unmultiplied(230, 240, 245, out_alpha);
+                let out_c = Color32::from_rgba_unmultiplied(195, 215, 228, out_alpha);
                 let g_out = p.layout_no_wrap(prev_text.clone(), theme::semibold(out_sz), out_c);
                 let out_x = if align_center { rect.center().x - g_out.size().x / 2.0 } else { rect.left() };
-                p.galley(pos2(out_x, rect.center().y - g_out.size().y / 2.0 - e * 13.0), g_out, out_c);
+                p.galley(pos2(out_x, rect.center().y - g_out.size().y / 2.0 - e * 14.0), g_out, out_c);
             }
 
-            let dy_in = (1.0 - e) * 13.0;
+            let dy_in = (1.0 - e) * 14.0;
             let sz = base_size - 0.9 * (1.0 - e);
             if let Some(c) = &active_cue
                 && c.shot.text == cur_text
             {
                 let sung = sung_chars(&c.shot, c.t);
-                let dim_c = Color32::from_rgba_unmultiplied(148, 165, 182, (e * 215.0).round() as u8);
+                let dim_c = Color32::from_rgba_unmultiplied(142, 160, 178, (e * 215.0).round() as u8);
                 let g_dim = p.layout_no_wrap(cur_text.clone(), theme::semibold(sz), dim_c);
                 let text_x = if align_center { rect.center().x - g_dim.size().x / 2.0 } else { rect.left() };
                 let text_pos = pos2(text_x, rect.center().y - g_dim.size().y / 2.0 + dy_in);
                 p.galley(text_pos, g_dim.clone(), dim_c);
                 let (_, edge_x) = lit_edge(&g_dim, sung);
 
-                let mint_c = Color32::from_rgba_unmultiplied(102, 235, 203, (e * 245.0).round() as u8);
+                // Soft aqua bloom ahead of the active syllable
+                let bloom_c = Color32::from_rgba_unmultiplied(56, 189, 248, (e * 175.0).round() as u8);
+                let g_bloom = p.layout_no_wrap(cur_text.clone(), theme::semibold(sz), bloom_c);
+                let bloom_clip = Rect::from_min_max(
+                    rect.min,
+                    pos2((text_pos.x + edge_x + 22.0).clamp(rect.left(), rect.right()), rect.bottom()),
+                );
+                p.with_clip_rect(bloom_clip).galley(text_pos - vec2(0.0, 0.5), g_bloom, bloom_c);
+
+                // Electric mint karaoke wave
+                let mint_c = Color32::from_rgba_unmultiplied(102, 235, 203, (e * 250.0).round() as u8);
                 let g_mint = p.layout_no_wrap(cur_text.clone(), theme::semibold(sz), mint_c);
                 let mint_clip = Rect::from_min_max(
                     rect.min,
-                    pos2((text_pos.x + edge_x + 14.0).clamp(rect.left(), rect.right()), rect.bottom()),
+                    pos2((text_pos.x + edge_x + 12.0).clamp(rect.left(), rect.right()), rect.bottom()),
                 );
-                p.with_clip_rect(mint_clip).galley(text_pos - vec2(0.0, 0.6), g_mint, mint_c);
+                p.with_clip_rect(mint_clip).galley(text_pos - vec2(0.0, 0.8), g_mint, mint_c);
 
+                // Crisp white sung core
                 let lit_c = Color32::from_rgba_unmultiplied(255, 255, 255, (e * 255.0).round() as u8);
                 let g_lit = p.layout_no_wrap(cur_text.clone(), theme::semibold(sz), lit_c);
                 let lit_clip = Rect::from_min_max(
                     rect.min,
-                    pos2((text_pos.x + edge_x + 1.0).clamp(rect.left(), rect.right()), rect.bottom()),
+                    pos2((text_pos.x + edge_x + 1.5).clamp(rect.left(), rect.right()), rect.bottom()),
                 );
-                p.with_clip_rect(lit_clip).galley(text_pos - vec2(0.0, 0.8), g_lit, lit_c);
+                p.with_clip_rect(lit_clip).galley(text_pos - vec2(0.0, 1.0), g_lit, lit_c);
             } else {
                 let in_c = Color32::from_rgba_unmultiplied(255, 255, 255, (e * 255.0).round() as u8);
                 let g_in = p.layout_no_wrap(cur_text.clone(), theme::semibold(sz), in_c);
@@ -1104,7 +1131,8 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
                 ctx.data_mut(|d| d.insert_temp(peek_hover_key, hit.hovered()));
 
                 let eq_pos = pos2(pill.left() + 18.0, pill.center().y);
-                ui.painter().circle_filled(eq_pos, 8.0, Color32::from_rgb(22, 66, 61));
+                ui.painter().circle_filled(eq_pos, 8.0, Color32::from_rgb(16, 46, 44));
+                ui.painter().circle_stroke(eq_pos, 8.0, egui::Stroke::new(0.8, mint.gamma_multiply(0.55)));
                 icon_at(ui, eq_pos, icon::MUSIC, 10.0, mint);
                 let chev_pos = pos2(pill.right() - 16.0, pill.center().y);
                 icon_at(ui, chev_pos, icon::CHEVRON_DOWN, 13.0, mint);
@@ -1116,7 +1144,7 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
                     egui::Align2::CENTER_CENTER,
                     peek_label,
                     theme::semibold(11.5),
-                    Color32::from_rgb(230, 244, 240),
+                    Color32::from_rgb(232, 246, 242),
                 );
                 if hit.clicked() {
                     tucked_now = false;
@@ -1126,18 +1154,32 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
             }
 
             if !expanded {
+                // Micro playback progress laser line along bottom edge of compact notch
+                let pos_s = app.audio.status.position_smooth().as_secs_f32();
+                let dur_s = app.audio.status.duration().map(|d| d.as_secs_f32())
+                    .or_else(|| track.as_ref().and_then(|tr| tr.duration).map(|d| d as f32))
+                    .unwrap_or(0.0);
+                if dur_s > 0.0 {
+                    let frac = (pos_s / dur_s).clamp(0.0, 1.0);
+                    let line_w = (pill.width() - 36.0).max(20.0);
+                    let bar_bg = Rect::from_min_size(pos2(pill.left() + 18.0, pill.bottom() - 2.4), vec2(line_w, 1.5));
+                    ui.painter().rect_filled(bar_bg, 0.75, Color32::from_rgba_unmultiplied(255, 255, 255, 18));
+                    let bar_fg = Rect::from_min_size(bar_bg.min, vec2(line_w * frac, 1.5));
+                    ui.painter().rect_filled(bar_fg, 0.75, mint.gamma_multiply(0.85));
+                }
+
                 egui::Frame::new().inner_margin(egui::Margin::symmetric(12, 6)).show(ui, |ui| {
                     let row = ui.available_rect_before_wrap();
-                    let thumb = Rect::from_center_size(pos2(row.left() + 12.0, row.center().y), vec2(22.0, 22.0));
+                    let thumb = Rect::from_center_size(pos2(row.left() + 13.0, row.center().y), vec2(24.0, 24.0));
                     match &track {
-                        Some(tr) => paint_cover(ui, thumb, &tr.thumbs, 7.0, 1.0),
+                        Some(tr) => paint_cover(ui, thumb, &tr.thumbs, 7.5, 1.0),
                         None => {
-                            ui.painter().rect_filled(thumb, 7.0, Color32::from_rgb(22, 66, 61));
+                            ui.painter().rect_filled(thumb, 7.5, Color32::from_rgb(16, 46, 44));
                             icon_at(ui, thumb.center(), icon::MUSIC, 14.0, mint);
                         }
                     }
                     if playing {
-                        ui.painter().rect_stroke(thumb, 7.0, egui::Stroke::new(1.0, mint.gamma_multiply(0.55)), egui::StrokeKind::Outside);
+                        ui.painter().rect_stroke(thumb, 7.5, egui::Stroke::new(1.1, mint.gamma_multiply(0.75)), egui::StrokeKind::Outside);
                     }
 
                     let tuck_rect = Rect::from_center_size(pos2(row.right() - 11.0, row.center().y), vec2(22.0, 22.0));
@@ -1145,14 +1187,14 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
                         .on_hover_cursor(egui::CursorIcon::PointingHand)
                         .on_hover_text("Hide to mini pill");
                     if tuck_hit.hovered() {
-                        ui.painter().rect_filled(tuck_rect, 11.0, Color32::from_rgba_unmultiplied(255, 255, 255, 24));
+                        ui.painter().rect_filled(tuck_rect, 11.0, Color32::from_rgba_unmultiplied(102, 235, 203, 32));
                     }
                     icon_at(
                         ui,
                         tuck_rect.center(),
                         icon::CHEVRON_UP,
                         13.5,
-                        if tuck_hit.hovered() { mint } else { Color32::from_rgb(180, 196, 210) },
+                        if tuck_hit.hovered() { mint } else { Color32::from_rgb(186, 204, 218) },
                     );
                     if tuck_hit.clicked() {
                         tucked_now = true;
@@ -1160,7 +1202,7 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
                     }
 
                     let eq_center = pos2(tuck_rect.left() - 16.0, row.center().y);
-                    draw_eq(ui, eq_center, 4, 8.5);
+                    draw_eq(ui, eq_center, 4, 9.0);
 
                     let content = Rect::from_min_max(
                         pos2(thumb.right() + 10.0, row.top()),
@@ -1181,60 +1223,86 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
                 return;
             }
 
-            // Expanded Dynamic Island Media Card
+            // Expanded Dynamic Island Media Card (WhisMuno Pro Deck)
             egui::Frame::new().inner_margin(egui::Margin::symmetric(16, 12)).show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    let art_size = 62.0;
+                    let art_size = 64.0;
                     let (art_rect, _) = ui.allocate_exact_size(vec2(art_size, art_size), Sense::hover());
                     match &track {
-                        Some(tr) => paint_cover(ui, art_rect, &tr.thumbs, 12.0, 1.0),
+                        Some(tr) => paint_cover(ui, art_rect, &tr.thumbs, 13.0, 1.0),
                         None => {
-                            ui.painter().rect_filled(art_rect, 12.0, Color32::from_rgba_unmultiplied(255, 255, 255, 14));
-                            icon_at(ui, art_rect.center(), icon::MUSIC, 22.0, theme::text_faint());
+                            ui.painter().rect_filled(art_rect, 13.0, Color32::from_rgba_unmultiplied(102, 235, 203, 18));
+                            icon_at(ui, art_rect.center(), icon::MUSIC, 24.0, mint);
                         }
                     }
-                    ui.add_space(10.0);
-                    // Reserve all three action buttons and their spacing before laying out text.
-                    let info_w = (ui.available_width() - 100.0).max(60.0);
+                    ui.painter().rect_stroke(
+                        art_rect,
+                        13.0,
+                        egui::Stroke::new(1.0, if playing { mint.gamma_multiply(0.55) } else { Color32::from_rgba_unmultiplied(255, 255, 255, 24) }),
+                        egui::StrokeKind::Inside,
+                    );
+                    ui.add_space(12.0);
+                    let info_w = (ui.available_width() - 96.0).max(60.0);
                     ui.allocate_ui(vec2(info_w, art_size), |ui| {
                         ui.vertical(|ui| {
+                            // Top micro-badge: WHISMUNO LIVE + Equalizer
+                            ui.horizontal(|ui| {
+                                let (dot_r, _) = ui.allocate_exact_size(vec2(6.0, 6.0), Sense::hover());
+                                ui.painter().circle_filled(dot_r.center(), 3.0, if playing { mint } else { Color32::from_rgb(120, 136, 152) });
+                                ui.add_space(3.0);
+                                ui.label(
+                                    egui::RichText::new(if lyric.is_some() { "WHISMUNO · LIVE LYRICS" } else { "WHISMUNO ISLAND" })
+                                        .font(theme::semibold(9.5))
+                                        .color(mint.gamma_multiply(0.9)),
+                                );
+                            });
+                            ui.add_space(2.0);
                             let (title, artist) = match &track {
                                 Some(tr) => (tr.title.as_str(), tr.artist_line()),
-                                None => ("Nothing playing", String::new()),
+                                None => ("Nothing playing", "Play a song in WhisMuno".to_owned()),
                             };
-                            text_at(ui, ui.cursor().min, title, theme::semibold(14.0), Color32::WHITE, info_w);
-                            ui.add_space(18.0);
+                            text_at(ui, ui.cursor().min, title, theme::semibold(14.5), Color32::WHITE, info_w);
+                            ui.add_space(17.0);
                             if !artist.is_empty() {
-                                text_at(ui, ui.cursor().min, &artist, theme::regular(12.0), Color32::from_rgb(148, 163, 184), info_w);
-                                ui.add_space(16.0);
+                                text_at(ui, ui.cursor().min, &artist, theme::regular(11.8), Color32::from_rgb(156, 174, 194), info_w);
+                                ui.add_space(14.0);
                             }
                             if lyric.is_some() {
-                                let (lyr_r, _) = ui.allocate_exact_size(vec2(info_w, 16.0), Sense::hover());
-                                draw_notch_lyric(&ui.painter().with_clip_rect(lyr_r), lyr_r, 12.0, false);
+                                let (lyr_r, _) = ui.allocate_exact_size(vec2(info_w, 17.0), Sense::hover());
+                                draw_notch_lyric(&ui.painter().with_clip_rect(lyr_r), lyr_r, 12.2, false);
                             }
                         });
                     });
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                        let top_btn = |ui: &mut Ui, glyph: char, sz: f32, tip: &str| {
-                            let (r, hit) = ui.allocate_exact_size(vec2(24.0, 24.0), Sense::click());
+                        let top_btn = |ui: &mut Ui, glyph: char, sz: f32, tip: &str, danger: bool| {
+                            let (r, hit) = ui.allocate_exact_size(vec2(25.0, 25.0), Sense::click());
                             let fill = if hit.hovered() {
-                                Color32::from_rgba_unmultiplied(255, 255, 255, 28)
+                                if danger {
+                                    Color32::from_rgba_unmultiplied(239, 68, 68, 70)
+                                } else {
+                                    Color32::from_rgba_unmultiplied(102, 235, 203, 38)
+                                }
                             } else {
-                                Color32::from_rgba_unmultiplied(255, 255, 255, 12)
+                                Color32::from_rgba_unmultiplied(255, 255, 255, 13)
                             };
-                            ui.painter().rect_filled(r, 12.0, fill);
-                            icon_at(ui, r.center(), glyph, sz, if hit.hovered() { Color32::WHITE } else { Color32::from_rgb(203, 213, 225) });
+                            ui.painter().rect_filled(r, 12.5, fill);
+                            let fg = if hit.hovered() {
+                                if danger { Color32::from_rgb(254, 202, 202) } else { mint }
+                            } else {
+                                Color32::from_rgb(203, 213, 225)
+                            };
+                            icon_at(ui, r.center(), glyph, sz, fg);
                             hit.on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text(tip).clicked()
                         };
-                        if top_btn(ui, icon::X, 14.0, "Turn off notch") {
+                        if top_btn(ui, icon::X, 13.5, "Turn off notch", true) {
                             app.desktop_notch = false;
                         }
                         ui.add_space(4.0);
-                        if top_btn(ui, icon::SHRINK, 13.5, "Collapse to compact lyrics") {
+                        if top_btn(ui, icon::SHRINK, 13.0, "Collapse to compact lyrics", false) {
                             expanded_now = false;
                         }
                         ui.add_space(4.0);
-                        if top_btn(ui, icon::CHEVRON_UP, 14.0, "Hide to mini pill") {
+                        if top_btn(ui, icon::CHEVRON_UP, 13.5, "Hide to mini pill", false) {
                             tucked_now = true;
                             expanded_now = false;
                         }
@@ -1242,24 +1310,24 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
                 });
 
                 // Interactive seekable progress bar + timestamps
-                ui.add_space(8.0);
+                ui.add_space(9.0);
                 let pos_s = app.audio.status.position_smooth().as_secs_f32();
                 let dur_s = app.audio.status.duration().map(|d| d.as_secs_f32())
                     .or_else(|| track.as_ref().and_then(|tr| tr.duration).map(|d| d as f32))
                     .unwrap_or(0.0);
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new(fmt_time(pos_s as u32)).size(10.5).color(Color32::from_rgb(148, 163, 184)));
-                    // Leave room for long durations (e.g. 100:00), not just 0:00.
-                    let bar_w = (ui.available_width() - 55.0).max(40.0);
+                    ui.label(egui::RichText::new(fmt_time(pos_s as u32)).size(10.5).color(Color32::from_rgb(160, 178, 198)));
+                    let bar_w = (ui.available_width() - 52.0).max(40.0);
                     let (hit_rect, seek_hit) = ui.allocate_exact_size(vec2(bar_w, 14.0), Sense::click_and_drag());
-                    let prog_rect = Rect::from_center_size(hit_rect.center(), vec2(bar_w, 4.0));
-                    ui.painter().rect_filled(prog_rect, 2.0, Color32::from_rgba_unmultiplied(255, 255, 255, 24));
+                    let thick = if seek_hit.hovered() || seek_hit.dragged() { 5.2 } else { 4.0 };
+                    let prog_rect = Rect::from_center_size(hit_rect.center(), vec2(bar_w, thick));
+                    ui.painter().rect_filled(prog_rect, thick / 2.0, Color32::from_rgba_unmultiplied(255, 255, 255, 24));
                     if dur_s > 0.0 {
                         let frac = (pos_s / dur_s).clamp(0.0, 1.0);
                         let fill = Rect::from_min_size(prog_rect.min, vec2(prog_rect.width() * frac, prog_rect.height()));
-                        ui.painter().rect_filled(fill, 2.0, mint);
+                        ui.painter().rect_filled(fill, thick / 2.0, mint);
                         if seek_hit.hovered() || seek_hit.dragged() {
-                            ui.painter().circle_filled(pos2(fill.right(), prog_rect.center().y), 4.5, Color32::WHITE);
+                            ui.painter().circle_filled(pos2(fill.right(), prog_rect.center().y), 5.2, Color32::WHITE);
                         }
                         if (seek_hit.clicked() || seek_hit.drag_stopped())
                             && let Some(p) = seek_hit.interact_pointer_pos()
@@ -1268,35 +1336,53 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
                             app.actions.push(Action::Seek(target_frac * dur_s));
                         }
                     }
-                    ui.label(egui::RichText::new(fmt_time(dur_s as u32)).size(10.5).color(Color32::from_rgb(148, 163, 184)));
+                    ui.label(egui::RichText::new(fmt_time(dur_s as u32)).size(10.5).color(Color32::from_rgb(160, 178, 198)));
                 });
 
-                // Modern vector transport controls + mute & custom volume bar + live equalizer
-                ui.add_space(8.0);
+                // Modern vector transport controls + Like + Side Lyrics toggle + Volume + Live EQ
+                ui.add_space(7.0);
                 ui.horizontal(|ui| {
-                    let control = |ui: &mut Ui, label: &str, glyph: char, sz: f32, accent: bool| {
-                        let box_sz = if accent { vec2(38.0, 30.0) } else { vec2(32.0, 30.0) };
+                    let control = |ui: &mut Ui, label: &str, glyph: char, sz: f32, accent: bool, active: bool| {
+                        let box_sz = if accent { vec2(40.0, 30.0) } else { vec2(30.0, 30.0) };
                         let (r, hit) = ui.allocate_exact_size(box_sz, Sense::click());
                         if accent {
-                            ui.painter().rect_filled(r, 15.0, if hit.hovered() { mint } else { mint.gamma_multiply(0.9) });
+                            ui.painter().rect_filled(r, 15.0, if hit.hovered() { mint } else { mint.gamma_multiply(0.92) });
                             icon_at(ui, r.center(), glyph, sz, Color32::from_rgb(6, 12, 16));
                         } else {
-                            let fill = if hit.hovered() {
-                                Color32::from_rgba_unmultiplied(255, 255, 255, 24)
+                            let fill = if active {
+                                Color32::from_rgba_unmultiplied(102, 235, 203, 36)
+                            } else if hit.hovered() {
+                                Color32::from_rgba_unmultiplied(255, 255, 255, 26)
                             } else {
-                                Color32::from_rgba_unmultiplied(255, 255, 255, 10)
+                                Color32::from_rgba_unmultiplied(255, 255, 255, 11)
                             };
                             ui.painter().rect_filled(r, 12.0, fill);
-                            icon_at(ui, r.center(), glyph, sz, Color32::WHITE);
+                            icon_at(ui, r.center(), glyph, sz, if active { mint } else { Color32::WHITE });
                         }
                         hit.on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text(label).clicked()
                     };
-                    if control(ui, "Previous", icon::SKIP_BACK, 15.0, false) { app.prev(); }
+
+                    if let Some(tr) = &track {
+                        let liked = app.liked.contains(&tr.id);
+                        if control(ui, if liked { "Liked" } else { "Like song" }, icon::HEART, 14.0, false, liked) {
+                            app.actions.push(Action::Like(tr.clone(), !liked));
+                        }
+                        ui.add_space(4.0);
+                    }
+                    if control(ui, "Previous", icon::SKIP_BACK, 14.5, false, false) { app.prev(); }
                     ui.add_space(4.0);
-                    if control(ui, if playing { "Pause" } else { "Play" }, if playing { icon::PAUSE } else { icon::PLAY }, 16.0, true) { app.toggle(); }
+                    if control(ui, if playing { "Pause" } else { "Play" }, if playing { icon::PAUSE } else { icon::PLAY }, 16.0, true, false) { app.toggle(); }
                     ui.add_space(4.0);
-                    if control(ui, "Next", icon::SKIP_FORWARD, 15.0, false) { app.next(); }
-                    ui.add_space(10.0);
+                    if control(ui, "Next", icon::SKIP_FORWARD, 14.5, false, false) { app.next(); }
+                    ui.add_space(6.0);
+                    if control(ui, "Toggle Side Lyrics in App", icon::LIST_MUSIC, 14.0, false, app.lyrics_drawer) {
+                        app.lyrics_drawer = !app.lyrics_drawer;
+                        if app.lyrics_drawer {
+                            app.queue_open = false;
+                            app.np_open = false;
+                        }
+                    }
+                    ui.add_space(8.0);
 
                     let vol = app.audio.volume();
                     let vol_glyph = if vol <= 0.001 { icon::VOLUME_X } else if vol < 0.5 { icon::VOLUME_1 } else { icon::VOLUME_2 };
@@ -1310,8 +1396,8 @@ pub(super) fn desktop_notch(app: &mut App, ctx: &egui::Context) {
                     }
 
                     ui.add_space(4.0);
-                    let (vol_hit_r, vol_hit) = ui.allocate_exact_size(vec2(96.0, 16.0), Sense::click_and_drag());
-                    let vol_track = Rect::from_center_size(vol_hit_r.center(), vec2(96.0, 4.0));
+                    let (vol_hit_r, vol_hit) = ui.allocate_exact_size(vec2(84.0, 16.0), Sense::click_and_drag());
+                    let vol_track = Rect::from_center_size(vol_hit_r.center(), vec2(84.0, 4.0));
                     ui.painter().rect_filled(vol_track, 2.0, Color32::from_rgba_unmultiplied(255, 255, 255, 24));
                     let vol_fill = Rect::from_min_size(vol_track.min, vec2(vol_track.width() * vol.clamp(0.0, 1.0), 4.0));
                     ui.painter().rect_filled(vol_fill, 2.0, mint);

@@ -439,10 +439,10 @@ private const val PAGE_CONNECT = 1
 /** Long enough for a full name; the party server keeps the first 80. */
 private const val NAME_LIMIT = 40
 
-/** The account page keeps leaning into YouTube's red while it moves. */
+/** The account page keeps WhisMuno's signature mint-aqua glow while it moves. */
 private val ConnectPalettes = listOf(
-    MeshPalette(listOf(Color(0xFFFF1E3C), Color(0xFFC2185B), Color(0xFFFF8F3D), Color(0xFF4A1C8C))),
-    MeshPalette(listOf(Color(0xFFE53935), Color(0xFFFF6E40), Color(0xFFAD1457), Color(0xFF311B92))),
-    MeshPalette(listOf(Color(0xFFFF3D00), Color(0xFFD81B60), Color(0xFF8E24AA), Color(0xFFB71C1C))),
-    MeshPalette(listOf(Color(0xFFF50057), Color(0xFFFF9100), Color(0xFFC51162), Color(0xFF4527A0))),
+    MeshPalette(listOf(Color(0xFF66EBCB), Color(0xFF0D9488), Color(0xFF38BDF8), Color(0xFF0F172A))),
+    MeshPalette(listOf(Color(0xFF2DD4BF), Color(0xFF0284C7), Color(0xFF6366F1), Color(0xFF082F49))),
+    MeshPalette(listOf(Color(0xFF34D399), Color(0xFF00B8D4), Color(0xFF4F46E5), Color(0xFF091526))),
+    MeshPalette(listOf(Color(0xFFA7F3D0), Color(0xFF2DD4BF), Color(0xFF0EA5E9), Color(0xFF1E293B))),
 )
