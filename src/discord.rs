@@ -57,10 +57,10 @@ impl ActivityKind {
 
     fn parse(s: &str) -> Self {
         match s {
-            "playing" => Self::Playing,
+            "listening" => Self::Listening,
             "watching" => Self::Watching,
             "competing" => Self::Competing,
-            _ => Self::Listening,
+            _ => Self::Playing,
         }
     }
 
@@ -101,18 +101,23 @@ pub struct Prefs {
 
 impl Default for Prefs {
     fn default() -> Self {
-        Self { lead_with_song: true, show_quality: true, advanced: false, activity: ActivityKind::Listening, name: DEFAULT_NAME.to_owned() }
+        Self { lead_with_song: true, show_quality: true, advanced: false, activity: ActivityKind::Playing, name: DEFAULT_NAME.to_owned() }
     }
 }
 
 impl Prefs {
     pub fn load(get: impl Fn(&str) -> Option<String>) -> Self {
         let flag = |k: &str, default: bool| get(k).map_or(default, |v| v == "1");
+        let advanced = flag("discord_advanced", false);
         Self {
             lead_with_song: flag("discord_lead_with_song", true),
             show_quality: flag("discord_show_quality", true),
-            advanced: flag("discord_advanced", false),
-            activity: ActivityKind::parse(&get("discord_activity").unwrap_or_default()),
+            advanced,
+            activity: if advanced {
+                ActivityKind::parse(&get("discord_activity").unwrap_or_default())
+            } else {
+                ActivityKind::Playing
+            },
             name: get("discord_name")
                 .map(|s| s.trim().to_owned())
                 .filter(|s| !s.is_empty() && s != "BitChord x Whis" && s != "BitChord")
@@ -281,7 +286,9 @@ fn activity<'a>(p: &'a Presence, prefs: &Prefs) -> Activity<'a> {
     // Discord's own name for this application ID is not the app's, so the card always
     // carries ours: a blank field falls back to the default rather than to Discord's.
     let name = if prefs.name.trim().is_empty() { DEFAULT_NAME } else { prefs.name.trim() };
-    let state_text = if p.paused {
+    let state_text = if p.video_id.is_empty() {
+        p.artist.clone()
+    } else if p.paused {
         format!("Paused · {}", p.artist)
     } else {
         p.artist.clone()
@@ -295,10 +302,13 @@ fn activity<'a>(p: &'a Presence, prefs: &Prefs) -> Activity<'a> {
         .status_display_type(if prefs.lead_with_song { StatusDisplayType::Details } else { StatusDisplayType::State })
         .timestamps(ts)
         .assets(assets);
-    let url = format!("https://music.youtube.com/watch?v={}", p.video_id);
-    // The old app's two buttons, always there and always the same: the song on YouTube
-    // Music, and the project. Discord shows them to other people, never to you.
-    act.buttons(vec![Button::new(DEFAULT_BUTTON1, url), Button::new(DEFAULT_BUTTON2, PROJECT_URL)])
+    let buttons = if p.video_id.is_empty() {
+        vec![Button::new(DEFAULT_BUTTON2, PROJECT_URL)]
+    } else {
+        let url = format!("https://music.youtube.com/watch?v={}", p.video_id);
+        vec![Button::new(DEFAULT_BUTTON1, url), Button::new(DEFAULT_BUTTON2, PROJECT_URL)]
+    };
+    act.buttons(buttons)
 }
 
 /// Discord rejects text fields shorter than 2 or longer than 128 characters.

@@ -31,31 +31,52 @@ impl App {
         let Some(d) = &self.discord else { return };
         let playing = self.playing() && !self.buffering;
         let track = self.playing_track().or_else(|| self.current());
-        if track.is_none() {
-            return;
-        }
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as i64;
-        let start_ms = now - self.audio.status.position().as_millis() as i64;
+        let Some(t) = track else {
+            if self.discord_sent.as_ref().is_some_and(|b| b.video_id.is_empty()) {
+                return;
+            }
+            let idle = Some(crate::discord::Presence {
+                video_id: String::new(),
+                title: "Browsing music".to_owned(),
+                artist: "WhisMuno Desktop".to_owned(),
+                album: None,
+                art: None,
+                quality: None,
+                start_ms: self.discord_sent.as_ref().map_or(now, |b| b.start_ms),
+                end_ms: None,
+                paused: true,
+            });
+            d.set(idle.clone());
+            self.discord_sent = idle;
+            return;
+        };
+        let pos_ms = self.audio.status.position().as_millis() as i64;
+        let start_ms = if playing {
+            now - pos_ms
+        } else {
+            self.discord_sent
+                .as_ref()
+                .filter(|b| b.video_id == t.id)
+                .map_or(now - pos_ms, |b| b.start_ms)
+        };
         let dur = self.audio.status.duration_ms.load(Ordering::Relaxed) as i64;
+        let end_ms = (playing && dur > 0).then_some(start_ms + dur);
         // The full quality line the player's track-info shows; YouTube's own audio is
         // the plain compressed one, so it has no detail numbers.
         let quality = self.audio_info.as_ref().map_or_else(|| "High".to_owned(), |(_, i)| i.rpc_line());
         // Position ticks every 100 ms; only a jump of 2 s or more is a real seek.
-        let same = match (track, &self.discord_sent) {
-            (Some(t), Some(b)) => {
-                b.video_id == t.id
-                    && b.paused == !playing
-                    && (b.paused || (start_ms - b.start_ms).abs() < 2000)
-                    && b.end_ms.is_some() == (dur > 0)
-                    && b.quality.as_deref() == Some(quality.as_str())
-            }
-            (None, None) => true,
-            _ => false,
-        };
+        let same = self.discord_sent.as_ref().is_some_and(|b| {
+            b.video_id == t.id
+                && b.paused == !playing
+                && (b.paused || (start_ms - b.start_ms).abs() < 2000)
+                && b.end_ms.is_some() == end_ms.is_some()
+                && b.quality.as_deref() == Some(quality.as_str())
+        });
         if same {
             return;
         }
-        let want = track.map(|t| crate::discord::Presence {
+        let want = Some(crate::discord::Presence {
             video_id: t.id.clone(),
             title: t.title.clone(),
             artist: t.artist_line(),
@@ -63,7 +84,7 @@ impl App {
             art: backend::art_url(t),
             quality: Some(quality),
             start_ms,
-            end_ms: (dur > 0).then_some(start_ms + dur),
+            end_ms,
             paused: !playing,
         });
         d.set(want.clone());

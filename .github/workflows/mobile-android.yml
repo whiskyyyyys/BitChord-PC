@@ -12,7 +12,7 @@ on:
       - '.github/workflows/mobile-android.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   android:
@@ -27,12 +27,26 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
       - uses: gradle/actions/setup-gradle@v4
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
       - name: Build installable debug APK
-        run: bash gradlew :app:assembleProdDebug -Pbitchord.bundleWear=false
+        run: ./gradlew :app:assembleProdDebug -Pbitchord.bundleWear=false
       - uses: actions/upload-artifact@v4
         with:
           name: WhisMuno-Android-debug
           path: mobile/app/build/outputs/apk/prod/debug/*.apk
           if-no-files-found: error
+      - name: Publish Android APK to GitHub Releases
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          apk=$(ls app/build/outputs/apk/prod/debug/*universal*.apk 2>/dev/null | head -n 1 || ls app/build/outputs/apk/prod/debug/*.apk | head -n 1)
+          cp "$apk" WhisMuno-Android-debug.apk
+          tag="v1.10-android.${GITHUB_RUN_NUMBER}"
+          gh release create "$tag" WhisMuno-Android-debug.apk \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "WhisMuno Android 1.10 (Build ${GITHUB_RUN_NUMBER})" \
+            --notes "Installable **WhisMuno Android** universal debug APK (\`WhisMuno-Android-debug.apk\`)."

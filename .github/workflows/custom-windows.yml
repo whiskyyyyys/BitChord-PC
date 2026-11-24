@@ -23,14 +23,14 @@ jobs:
           New-Item -ItemType Directory -Force portable, dist | Out-Null
           Copy-Item target/release/bitchord.exe, installer/portable.txt, LICENSE, README.md portable
           Copy-Item $dll.FullName portable
-          Compress-Archive -Path portable/* -DestinationPath dist/WhisMuno-2.0.7-Windows-x64-Portable.zip -Force
+          Compress-Archive -Path portable/* -DestinationPath dist/WhisMuno-2.0.8-Windows-x64-Portable.zip -Force
 
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
           if (!(Test-Path $iscc)) {
             choco install innosetup -y --no-progress
           }
           & $iscc installer/bitchord.iss
-          Copy-Item installer/Output/bitchord-setup-2.0.7.exe dist/WhisMuno-2.0.7-Windows-x64-Setup.exe
+          Copy-Item installer/Output/bitchord-setup-2.0.8.exe dist/WhisMuno-2.0.8-Windows-x64-Setup.exe
       - name: Verify mint W icon embedded in the Windows executable
         shell: pwsh
         run: |
@@ -50,14 +50,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
-          $tag = "v2.0.7-whis.$env:GITHUB_RUN_NUMBER"
+          $tag = "v2.0.8-whis.$env:GITHUB_RUN_NUMBER"
           $notes = @"
-          **WhisMuno** (**Whis** **Mu**sic **No**tch) for Windows x64 — locked 60fps synced lyrics in both Side/Full views and 3-layer glowing karaoke sweep + smooth rising lyrics in the Dynamic Island notch:
-          - **Windows x64 Installer**: ``WhisMuno-2.0.7-Windows-x64-Setup.exe``
-          - **Windows x64 Portable**: ``WhisMuno-2.0.7-Windows-x64-Portable.zip``
+          **WhisMuno** (**Whis** **Mu**sic **No**tch) for Windows x64 — Discord Recent Activity support (`Playing WhisMuno` persistent session tracking), locked 60fps synced lyrics, and refined Dynamic Island notch:
+          - **Windows x64 Installer**: ``WhisMuno-2.0.8-Windows-x64-Setup.exe``
+          - **Windows x64 Portable**: ``WhisMuno-2.0.8-Windows-x64-Portable.zip``
           "@
           gh release create $tag dist/* `
             --repo "$env:GITHUB_REPOSITORY" `
             --target "$env:GITHUB_SHA" `
-            --title "WhisMuno 2.0.7 (Build $env:GITHUB_RUN_NUMBER)" `
+            --title "WhisMuno 2.0.8 (Build $env:GITHUB_RUN_NUMBER)" `
             --notes $notes
