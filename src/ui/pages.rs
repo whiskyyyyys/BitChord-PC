@@ -1811,8 +1811,12 @@ fn settings_connections(app: &mut App, ui: &mut Ui) {
     let mut discord_enabled = app.discord_enabled;
     let prefs_before = app.discord_prefs.clone();
     section_label(ui, "Connections", None);
+    let discord_desc = match &app.discord {
+        Some(d) => format!("{} · Enable 'Share your detected activities with others' in Discord Privacy Settings.", d.status_text()),
+        None => "Show what you're playing on your Discord profile.".to_owned(),
+    };
     settings_card(ui, |ui| {
-        setting_row(ui, "Discord", Some("Show what you're playing on your Discord profile."), |ui| {
+        setting_row(ui, "Discord", Some(&discord_desc), |ui| {
             toggle(ui, &mut discord_enabled, "Discord");
         });
         divider(ui);

@@ -1114,17 +1114,14 @@ pub fn lyrics_drawer(app: &mut App, ui: &mut Ui, now: f64) {
     ui.horizontal(|ui| {
         let (dot_r, _) = ui.allocate_exact_size(vec2(8.0, 8.0), Sense::hover());
         ui.painter().circle_filled(dot_r.center(), 4.0, mint);
-        ui.label(egui::RichText::new("Live Lyrics").font(theme::bold(19.5)));
+        ui.label(egui::RichText::new("Live Lyrics").font(theme::bold(18.5)));
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             ui.add_space(super::titlebar::right_gap(ui.ctx(), ui.max_rect(), 0.0));
             if icon_button(ui, icon::X, 16.0, "Close side lyrics", false).clicked() {
                 app.lyrics_drawer = false;
             }
-            ui.add_space(6.0);
-            if widgets::pill(ui, "Full Screen", Some(icon::MAXIMIZE_2), false)
-                .on_hover_text("Open full-screen lyrics")
-                .clicked()
-            {
+            ui.add_space(2.0);
+            if icon_button(ui, icon::MAXIMIZE_2, 15.0, "Open full-screen lyrics", false).clicked() {
                 app.lyrics_drawer = false;
                 super::nowplaying::ask_lyrics(app, ui.ctx());
             }
@@ -1133,14 +1130,21 @@ pub fn lyrics_drawer(app: &mut App, ui: &mut Ui, now: f64) {
     ui.add_space(6.0);
     if let Some(tr) = app.current().cloned() {
         let card = Rect::from_min_size(ui.cursor().min, vec2(ui.available_width().min(352.0), 46.0));
-        ui.allocate_exact_size(card.size(), Sense::hover());
-        ui.painter().rect_filled(card, 11.0, Color32::from_rgba_unmultiplied(102, 235, 203, 16));
-        ui.painter().rect_stroke(card, 11.0, egui::Stroke::new(0.8, Color32::from_rgba_unmultiplied(102, 235, 203, 44)), egui::StrokeKind::Inside);
+        let card_hit = ui.allocate_rect(card, Sense::click())
+            .on_hover_cursor(egui::CursorIcon::PointingHand)
+            .on_hover_text("Open full-screen lyrics");
+        let fill_a = if card_hit.hovered() { 28 } else { 16 };
+        ui.painter().rect_filled(card, 11.0, Color32::from_rgba_unmultiplied(102, 235, 203, fill_a));
+        ui.painter().rect_stroke(card, 11.0, egui::Stroke::new(0.8, Color32::from_rgba_unmultiplied(102, 235, 203, if card_hit.hovered() { 92 } else { 44 })), egui::StrokeKind::Inside);
         let art = Rect::from_center_size(pos2(card.left() + 23.0, card.center().y), vec2(32.0, 32.0));
         paint_cover(ui, art, &tr.thumbs, 7.0, 1.0);
         let tw = (card.width() - 56.0).max(40.0);
         text_at(ui, pos2(art.right() + 9.0, card.top() + 7.0), &tr.title, theme::semibold(12.8), Color32::WHITE, tw);
         text_at(ui, pos2(art.right() + 9.0, card.top() + 24.0), &tr.artist_line(), theme::regular(11.2), mint.gamma_multiply(0.85), tw);
+        if card_hit.clicked() {
+            app.lyrics_drawer = false;
+            super::nowplaying::ask_lyrics(app, ui.ctx());
+        }
         ui.add_space(8.0);
     }
     let rect = ui.available_rect_before_wrap();

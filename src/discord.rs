@@ -5,6 +5,7 @@
 //! (Discord rate-limits activity updates) and reconnects every 15 s while Discord is
 //! closed.
 
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use crossbeam_channel::{Receiver, RecvTimeoutError, Sender};
@@ -159,14 +160,21 @@ enum Msg {
 
 pub struct Discord {
     tx: Sender<Msg>,
+    status: Arc<Mutex<String>>,
 }
 
 impl Discord {
     pub fn spawn() -> Option<Self> {
         let id = std::env::var("YTM_DISCORD_ID").ok().filter(|s| !s.is_empty()).unwrap_or_else(|| CLIENT_ID.to_owned());
         let (tx, rx) = crossbeam_channel::unbounded();
-        std::thread::Builder::new().name("discord".into()).spawn(move || run(&id, rx)).ok()?;
-        Some(Self { tx })
+        let status = Arc::new(Mutex::new("Connecting to Discord…".to_owned()));
+        let status_bg = status.clone();
+        std::thread::Builder::new().name("discord".into()).spawn(move || run(&id, rx, status_bg)).ok()?;
+        Some(Self { tx, status })
+    }
+
+    pub fn status_text(&self) -> String {
+        self.status.lock().unwrap().clone()
     }
 
     /// `None` clears the status (paused / stopped).
@@ -180,13 +188,16 @@ impl Discord {
     }
 }
 
-fn run(id: &str, rx: Receiver<Msg>) {
+fn run(id: &str, rx: Receiver<Msg>, status: Arc<Mutex<String>>) {
     let mut client: Option<DiscordIpcClient> = None;
     let mut want: Option<Presence> = None;
     let mut prefs = Prefs::default();
     let mut dirty = false;
     let mut next_try = Instant::now();
     let mut refresh_at = Instant::now();
+    let set_status = |msg: String| {
+        *status.lock().unwrap() = msg;
+    };
     loop {
         match rx.recv_timeout(RETRY) {
             Ok(m) => {
@@ -222,9 +233,11 @@ fn run(id: &str, rx: Receiver<Msg>) {
             match c.connect() {
                 Ok(()) => {
                     log::info!("discord: connected");
+                    set_status("Connected to Discord".to_owned());
                     client = Some(c);
                 }
-                Err(_) => {
+                Err(e) => {
+                    set_status(format!("Waiting for Discord desktop client ({e})"));
                     next_try = Instant::now() + RETRY;
                     continue;
                 }
@@ -242,14 +255,17 @@ fn run(id: &str, rx: Receiver<Msg>) {
             Ok((_, reply)) => {
                 if reply["evt"] == "ERROR" {
                     log::warn!("discord rejected activity: {}", reply["data"]);
+                    set_status(format!("Discord rejected presence: {}", reply["data"]));
                 } else {
-                    log::debug!("discord: activity set");
+                    log::info!("discord: activity updated ({})", prefs.activity.label());
+                    set_status(format!("Connected · {} {}", prefs.activity.label(), if prefs.name.trim().is_empty() { DEFAULT_NAME } else { prefs.name.trim() }));
                 }
                 dirty = false;
                 refresh_at = Instant::now() + Duration::from_secs(60);
             }
             Err(e) => {
                 log::warn!("discord: {e}; reconnecting");
+                set_status(format!("Reconnecting to Discord ({e})…"));
                 let _ = c.close();
                 client = None;
                 next_try = Instant::now() + RETRY;

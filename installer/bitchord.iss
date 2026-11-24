@@ -6,7 +6,7 @@
 ;   iscc /DArm64 installer\bitchord.iss  ->  bitchord-setup-<version>-arm64.exe
 
 #define AppName "WhisMuno"
-#define AppVersion "2.0.9"
+#define AppVersion "2.0.10"
 #define AppExe "bitchord.exe"
 #ifdef Arm64
   #define Arch "arm64"
