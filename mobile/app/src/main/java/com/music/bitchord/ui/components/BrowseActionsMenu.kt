@@ -281,8 +281,6 @@ fun BrowseActionsMenu(
             onRemoveCover?.let {
                 ActionRow(Icons.Rounded.HideImage, stringResource(R.string.remove_cover), onClick = it)
             }
-                }
-            }
             onReorder?.let {
                 ActionRow(SfIcons.Reorder, stringResource(R.string.reorder_songs), onClick = it)
             }
