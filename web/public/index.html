@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>WhisMuno</title>
+
+  <!-- iOS Safari Web App (PWA) -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="WhisMuno" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#04070D" />
+
+  <link rel="apple-touch-icon" href="/icon.png" />
+  <link rel="icon" type="image/png" href="/icon.png" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Top Header + Live Lyric Notch Pill -->
+    <header class="top-header">
+      <div class="brand-group">
+        <span class="brand-dot"></span>
+        <span class="brand-title">WhisMuno</span>
+      </div>
+      <button id="live-pill-btn" class="live-pill" type="button" title="Buka Pemutar">
+        <span class="live-pill-icon">♪</span>
+        <span id="live-pill-text">v2.0.10</span>
+      </button>
+    </header>
+
+    <!-- iOS Add to Home Screen Banner -->
+    <div id="ios-install-banner" class="install-banner hidden">
+      <div class="install-banner-content">
+        <img src="/icon.png" alt="WhisMuno" class="install-icon" />
+        <div class="install-text">
+          <strong>Pasang di Layar Utama iPhone</strong>
+          <span>Tap tombol <b>Share (□↑)</b> di Safari lalu pilih <b>Add to Home Screen</b> supaya tampil full-screen seperti aplikasi native.</span>
+        </div>
+      </div>
+      <button id="dismiss-install-btn" class="install-close" type="button" aria-label="Tutup">✕</button>
+    </div>
+
+    <!-- Main Scrollable Viewport -->
+    <main class="main-content">
+      <!-- Tab: Beranda -->
+      <section id="view-home" class="tab-view active">
+        <div id="recents-section" class="section-block hidden">
+          <h2 class="section-title">Baru Diputar</h2>
+          <div id="recents-row" class="horizontal-cards"></div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-header-row">
+            <h2 class="section-title">Pilihan Cepat</h2>
+            <button id="refresh-picks-btn" class="ghost-link" type="button">Muat Ulang</button>
+          </div>
+          <div id="quick-picks-list" class="song-list"></div>
+        </div>
+      </section>
+
+      <!-- Tab: Cari -->
+      <section id="view-search" class="tab-view">
+        <form id="search-form" class="search-bar">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <circle cx="11" cy="11" r="7"></circle>
+            <line x1="16.65" y1="16.65" x2="21" y2="21"></line>
+          </svg>
+          <input id="search-input" type="search" placeholder="Cari lagu, artis, atau lirik..." autocomplete="off" enterkeyhint="search" />
+          <button id="clear-search-btn" class="clear-btn hidden" type="button" aria-label="Hapus">✕</button>
+        </form>
+        <div id="search-results-list" class="song-list">
+          <div class="empty-state">
+            <div class="empty-glyph">♫</div>
+            <p>Ketik judul lagu atau artis lalu tekan Cari</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab: Koleksi -->
+      <section id="view-library" class="tab-view">
+        <div class="segmented-control">
+          <button id="lib-fav-tab" class="seg-btn active" type="button">Favorit (0)</button>
+          <button id="lib-rec-tab" class="seg-btn" type="button">Riwayat (0)</button>
+        </div>
+        <div id="library-list" class="song-list"></div>
+      </section>
+    </main>
+
+    <!-- Persistent Mini Player -->
+    <div id="mini-player" class="mini-player hidden">
+      <div id="mini-player-open" class="mini-player-left">
+        <img id="mini-art" src="/icon.png" alt="Cover" class="mini-art" />
+        <div class="mini-meta">
+          <div id="mini-title" class="mini-title">-</div>
+          <div id="mini-subtitle" class="mini-subtitle">-</div>
+        </div>
+      </div>
+      <div class="mini-actions">
+        <button id="mini-play-btn" class="icon-btn" type="button" aria-label="Play/Pause">▶</button>
+        <button id="mini-next-btn" class="icon-btn" type="button" aria-label="Berikutnya">⏭</button>
+      </div>
+    </div>
+
+    <!-- Bottom Tab Navigation -->
+    <nav class="bottom-nav">
+      <button class="nav-btn active" data-tab="home" type="button">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.2L3 10.5v9.8a.7.7 0 00.7.7h5.6v-6h5.4v6h5.6a.7.7 0 00.7-.7v-9.8L12 3.2z"/></svg>
+        <span>Beranda</span>
+      </button>
+      <button class="nav-btn" data-tab="search" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><line x1="16.65" y1="16.65" x2="21" y2="21"/></svg>
+        <span>Cari</span>
+      </button>
+      <button class="nav-btn" data-tab="library" type="button">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 5.5A1.5 1.5 0 015.5 4h2A1.5 1.5 0 019 5.5v13A1.5 1.5 0 017.5 20h-2A1.5 1.5 0 014 18.5v-13zm6.5 0A1.5 1.5 0 0112 4h2a1.5 1.5 0 011.5 1.5v13A1.5 1.5 0 0114 20h-2a1.5 1.5 0 01-1.5-1.5v-13zm6.2.6a1.5 1.5 0 011.9-1l1.9.6a1.5 1.5 0 011 1.9l-3.6 11.4a1.5 1.5 0 01-1.9 1l-1.9-.6a1.5 1.5 0 01-1-1.9l3.6-11.4z"/></svg>
+        <span>Koleksi</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Fullscreen Now Playing + Synced Lyrics Sheet -->
+  <div id="player-sheet" class="player-sheet hidden" aria-hidden="true">
+    <div id="player-ambient" class="player-ambient"></div>
+    <div class="player-ambient-overlay"></div>
+
+    <div class="player-inner">
+      <div class="sheet-top-bar">
+        <button id="close-sheet-btn" class="round-btn" type="button" aria-label="Tutup">⌄</button>
+        <div class="mode-switch">
+          <button id="mode-player-btn" class="mode-pill active" type="button">Pemutar</button>
+          <button id="mode-lyrics-btn" class="mode-pill" type="button">Lirik</button>
+        </div>
+        <button id="sheet-fav-btn" class="round-btn" type="button" aria-label="Favorit">♡</button>
+      </div>
+
+      <div id="panel-artwork" class="panel-stage active">
+        <div class="artwork-wrap">
+          <img id="sheet-art" src="/icon.png" alt="Album Art" class="sheet-art" />
+        </div>
+      </div>
+
+      <div id="panel-lyrics" class="panel-stage">
+        <div id="lyrics-scroll" class="lyrics-scroll">
+          <div class="empty-state"><p>Memuat lirik...</p></div>
+        </div>
+      </div>
+
+      <div class="sheet-footer">
+        <div class="sheet-meta">
+          <div id="sheet-title" class="sheet-title">-</div>
+          <div id="sheet-artist" class="sheet-artist">-</div>
+          <div id="sheet-status" class="sheet-status hidden"></div>
+        </div>
+
+        <div class="scrubber-box">
+          <input id="seek-slider" type="range" min="0" max="100" step="0.2" value="0" />
+          <div class="time-row">
+            <span id="time-elapsed">0:00</span>
+            <span id="time-total">0:00</span>
+          </div>
+        </div>
+
+        <div class="transport-row">
+          <button id="prev-btn" class="transport-side" type="button" aria-label="Sebelumnya">⏮</button>
+          <button id="play-pause-btn" class="transport-main" type="button" aria-label="Play/Pause">▶</button>
+          <button id="next-btn" class="transport-side" type="button" aria-label="Berikutnya">⏭</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <audio id="audio-el" playsinline preload="auto"></audio>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

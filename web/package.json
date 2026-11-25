@@ -1,0 +1,13 @@
+{
+  "name": "whismuno-pwa",
+  "version": "2.0.10",
+  "private": true,
+  "type": "module",
+  "description": "WhisMuno Web App (PWA) for iOS Safari & desktop browsers",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

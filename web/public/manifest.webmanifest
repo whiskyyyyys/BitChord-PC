@@ -1,0 +1,19 @@
+{
+  "name": "WhisMuno",
+  "short_name": "WhisMuno",
+  "description": "Streaming musik YouTube Music + lirik tersinkronisasi untuk iOS & semua perangkat.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#04070D",
+  "theme_color": "#04070D",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
