@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="WhisMuno" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="theme-color" content="#04070D" />
+  <meta name="theme-color" content="#000000" />
 
   <link rel="apple-touch-icon" href="/icon.png" />
   <link rel="icon" type="image/png" href="/icon.png" />
@@ -20,211 +20,277 @@
 <body>
   <div class="app-shell">
     <div class="left-pane">
-      <!-- Android-Style Top Header -->
-      <header class="top-header">
-        <div class="brand-group">
-          <img src="/icon.png" alt="WhisMuno" class="brand-avatar" />
-          <div class="brand-copy">
-            <span id="greeting-text" class="brand-greeting">Selamat Datang</span>
-            <span class="brand-title">WhisMuno</span>
-          </div>
-        </div>
-        <button id="live-pill-btn" class="live-pill" type="button" title="Buka Lirik & Pemutar">
-          <span class="live-bars" aria-hidden="true"><span></span><span></span><span></span></span>
-          <span id="live-pill-text">v2.0.12</span>
-        </button>
-      </header>
-
-      <!-- iOS Add to Home Screen Banner -->
-      <div id="ios-install-banner" class="install-banner hidden">
-        <div class="install-banner-content">
-          <img src="/icon.png" alt="WhisMuno" class="install-icon" />
-          <div class="install-text">
-            <strong>Pasang di Layar Utama iPhone</strong>
-            <span>Tap tombol <b>Share</b> di Safari lalu pilih <b>Add to Home Screen</b> agar tampil full-screen seperti aplikasi Android/iOS native.</span>
-          </div>
-        </div>
-        <button id="dismiss-install-btn" class="install-close" type="button" aria-label="Tutup">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-
-      <!-- Main Scrollable Viewport -->
       <main class="main-content">
-        <!-- Tab: Beranda -->
+        <!-- Tab: Home (WhisMuno Android Layout) -->
         <section id="view-home" class="tab-view active">
-          <!-- Mood & Genre Filter Chips (Android style) -->
-          <div id="mood-chips" class="mood-chips">
-            <button class="mood-chip active" data-mood="all" type="button">Semua</button>
-            <button class="mood-chip" data-mood="pop" type="button">Pop Indo</button>
-            <button class="mood-chip" data-mood="galau" type="button">Galau</button>
-            <button class="mood-chip" data-mood="koplo" type="button">Koplo &amp; Jawa</button>
-            <button class="mood-chip" data-mood="chill" type="button">Chill</button>
-            <button class="mood-chip" data-mood="global" type="button">Global Hits</button>
-            <button class="mood-chip" data-mood="remix" type="button">DJ &amp; Phonk</button>
-          </div>
-
-          <div id="recents-section" class="section-block hidden">
-            <h2 class="section-title">Putar Lagi</h2>
-            <div id="recents-row" class="horizontal-cards"></div>
-          </div>
-
-          <div class="section-block">
-            <div class="section-header-row">
-              <h2 class="section-title">Pilihan Cepat</h2>
-              <button id="refresh-picks-btn" class="ghost-link" type="button">Muat Ulang</button>
+          <header class="page-header">
+            <div class="page-header-left">
+              <h1 class="page-title">Home</h1>
             </div>
-            <div id="quick-picks-list" class="song-list"></div>
+            <div class="page-header-right">
+              <button id="live-pill-btn" class="live-pill hidden" type="button" title="Buka Lirik">
+                <span class="eq-bars playing" aria-hidden="true"><span></span><span></span><span></span></span>
+                <span id="live-pill-text">WhisMuno</span>
+              </button>
+              <img src="/icon.png" alt="WhisMuno" class="header-avatar" />
+            </div>
+          </header>
+
+          <!-- iOS Add to Home Screen Banner -->
+          <div id="ios-install-banner" class="install-banner hidden">
+            <div class="install-banner-content">
+              <img src="/icon.png" alt="WhisMuno" class="install-icon" />
+              <div class="install-text">
+                <strong>Pasang di Layar Utama iPhone</strong>
+                <span>Tap <b>Share</b> di Safari lalu pilih <b>Add to Home Screen</b> untuk tampilan full-screen persis Android.</span>
+              </div>
+            </div>
+            <button id="dismiss-install-btn" class="install-close" type="button" aria-label="Tutup">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <!-- Top Picks for You (Tall Hero Cards like Android TopPicksShelf) -->
+          <div class="shelf-block">
+            <div class="shelf-head">
+              <h2 class="shelf-title">Top Picks for You</h2>
+              <button id="refresh-picks-btn" class="shelf-action" type="button">Muat Ulang</button>
+            </div>
+            <div id="top-picks-row" class="top-picks-row"></div>
+          </div>
+
+          <!-- Find Your Mood (Vibrant Gradient Tiles like Android FindYourMoodShelf) -->
+          <div class="shelf-block">
+            <div class="shelf-head">
+              <h2 class="shelf-title">Find Your Mood</h2>
+            </div>
+            <div id="mood-grid" class="mood-grid">
+              <button class="mood-tile active" data-mood="all" type="button">
+                <span class="mood-tile-kicker">Kurasi</span>
+                <span class="mood-tile-name">Semua Hits</span>
+              </button>
+              <button class="mood-tile" data-mood="pop" type="button">
+                <span class="mood-tile-kicker">Lokal</span>
+                <span class="mood-tile-name">Pop Indo</span>
+              </button>
+              <button class="mood-tile" data-mood="galau" type="button">
+                <span class="mood-tile-kicker">Perasaan</span>
+                <span class="mood-tile-name">Galau</span>
+              </button>
+              <button class="mood-tile" data-mood="koplo" type="button">
+                <span class="mood-tile-kicker">Santuy</span>
+                <span class="mood-tile-name">Koplo &amp; Jawa</span>
+              </button>
+              <button class="mood-tile" data-mood="chill" type="button">
+                <span class="mood-tile-kicker">Fokus</span>
+                <span class="mood-tile-name">Chill Indie</span>
+              </button>
+              <button class="mood-tile" data-mood="global" type="button">
+                <span class="mood-tile-kicker">Chart</span>
+                <span class="mood-tile-name">Global Top</span>
+              </button>
+              <button class="mood-tile" data-mood="remix" type="button">
+                <span class="mood-tile-kicker">Energi</span>
+                <span class="mood-tile-name">DJ &amp; Phonk</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Recents (4-rows-per-column Horizontal Pager like Android RecentShelf) -->
+          <div id="recents-section" class="shelf-block hidden">
+            <div class="shelf-head">
+              <h2 class="shelf-title">Recents</h2>
+            </div>
+            <div id="recents-pager" class="track-pager"></div>
+          </div>
+
+          <!-- Quick Picks (4-rows-per-column Horizontal Pager like Android Quick Picks) -->
+          <div class="shelf-block">
+            <div class="shelf-head">
+              <div>
+                <div class="shelf-kicker">START RADIO FROM A SONG</div>
+                <h2 class="shelf-title">Quick Picks</h2>
+              </div>
+            </div>
+            <div id="quick-picks-pager" class="track-pager"></div>
           </div>
         </section>
 
-        <!-- Tab: Cari -->
+        <!-- Tab: Search -->
         <section id="view-search" class="tab-view">
+          <header class="page-header">
+            <h1 class="page-title">Search</h1>
+          </header>
           <form id="search-form" class="search-bar">
             <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
               <circle cx="11" cy="11" r="7"></circle>
               <line x1="16.65" y1="16.65" x2="21" y2="21"></line>
             </svg>
-            <input id="search-input" type="search" placeholder="Cari lagu, artis, atau lirik..." autocomplete="off" enterkeyhint="search" />
+            <input id="search-input" type="search" placeholder="Artists, songs, or lyrics..." autocomplete="off" enterkeyhint="search" />
             <button id="clear-search-btn" class="clear-btn hidden" type="button" aria-label="Hapus">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </form>
-          <div id="search-results-list" class="song-list">
+          <div id="search-results-list" class="clean-track-list">
             <div class="empty-state">
               <div class="empty-glyph">♫</div>
-              <p>Ketik judul lagu atau nama artis lalu tekan Cari</p>
+              <p>Cari lagu, artis, atau penggalan lirik di YouTube Music</p>
             </div>
           </div>
         </section>
 
-        <!-- Tab: Koleksi -->
+        <!-- Tab: Library -->
         <section id="view-library" class="tab-view">
+          <header class="page-header">
+            <h1 class="page-title">Library</h1>
+          </header>
           <div class="segmented-control">
-            <button id="lib-fav-tab" class="seg-btn active" type="button">Favorit (0)</button>
-            <button id="lib-rec-tab" class="seg-btn" type="button">Riwayat (0)</button>
+            <button id="lib-fav-tab" class="seg-btn active" type="button">Favorites (0)</button>
+            <button id="lib-rec-tab" class="seg-btn" type="button">History (0)</button>
           </div>
-          <div id="library-list" class="song-list"></div>
+          <div id="library-list" class="clean-track-list"></div>
         </section>
       </main>
 
-      <!-- Floating Android-Style Mini Player with Top Progress Bar -->
-      <div id="mini-player" class="mini-player hidden">
-        <div class="mini-progress-track">
-          <div id="mini-progress-fill" class="mini-progress-fill"></div>
-        </div>
-        <div class="mini-player-inner">
-          <div id="mini-player-open" class="mini-player-left">
-            <img id="mini-art" src="/icon.png" alt="Cover" class="mini-art" />
-            <div class="mini-meta">
-              <div id="mini-title" class="mini-title">-</div>
-              <div id="mini-subtitle" class="mini-subtitle">-</div>
+      <!-- Floating Liquid Glass Bottom Dock (Mini Player + Pill Nav like Android App) -->
+      <div class="bottom-dock-wrap">
+        <div id="mini-player" class="mini-player hidden">
+          <div class="mini-progress-track">
+            <div id="mini-progress-fill" class="mini-progress-fill"></div>
+          </div>
+          <div class="mini-player-inner">
+            <div id="mini-player-open" class="mini-player-left">
+              <img id="mini-art" src="/icon.png" alt="Cover" class="mini-art" />
+              <div class="mini-meta">
+                <div id="mini-title" class="mini-title">-</div>
+                <div id="mini-subtitle" class="mini-subtitle">-</div>
+              </div>
+            </div>
+            <div class="mini-actions">
+              <button id="mini-lyrics-btn" class="mini-icon-btn" type="button" title="Lyrics" aria-label="Lyrics">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 4h14a2 2 0 012 2v10a2 2 0 01-2 2h-6l-4.5 3.6A.5.5 0 017.7 21.2V18H5a2 2 0 01-2-2V6a2 2 0 012-2zm2.5 5a1 1 0 000 2h9a1 1 0 000-2h-9zm0 4a1 1 0 000 2h6a1 1 0 000-2h-6z"/></svg>
+              </button>
+              <button id="mini-play-btn" class="mini-icon-btn" type="button" aria-label="Play/Pause"></button>
+              <button id="mini-next-btn" class="mini-icon-btn" type="button" aria-label="Next">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5.5 6.2v11.6c0 .8.9 1.3 1.6.8l8.1-5.8a1 1 0 000-1.6L7.1 5.4c-.7-.5-1.6 0-1.6.8zm11.5-.7h1.5a.5.5 0 01.5.5v12a.5.5 0 01-.5.5H17a.5.5 0 01-.5-.5V6a.5.5 0 01.5-.5z"/></svg>
+              </button>
             </div>
           </div>
-          <div class="mini-actions">
-            <button id="mini-lyrics-btn" class="mini-lyric-chip" type="button">Lirik</button>
-            <button id="mini-play-btn" class="icon-btn" type="button" aria-label="Play/Pause"></button>
-            <button id="mini-next-btn" class="icon-btn" type="button" aria-label="Berikutnya">
-              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5.5 6.2v11.6c0 .8.9 1.3 1.6.8l8.1-5.8a1 1 0 000-1.6L7.1 5.4c-.7-.5-1.6 0-1.6.8zm11.5-.7h1.5a.5.5 0 01.5.5v12a.5.5 0 01-.5.5H17a.5.5 0 01-.5-.5V6a.5.5 0 01.5-.5z"/></svg>
-            </button>
-          </div>
         </div>
-      </div>
 
-      <!-- Bottom Tab Navigation -->
-      <nav class="bottom-nav">
-        <button class="nav-btn active" data-tab="home" type="button">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.2L3 10.5v9.8a.7.7 0 00.7.7h5.6v-6h5.4v6h5.6a.7.7 0 00.7-.7v-9.8L12 3.2z"/></svg>
-          <span>Beranda</span>
-        </button>
-        <button class="nav-btn" data-tab="search" type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><line x1="16.65" y1="16.65" x2="21" y2="21"/></svg>
-          <span>Cari</span>
-        </button>
-        <button class="nav-btn" data-tab="library" type="button">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 5.5A1.5 1.5 0 015.5 4h2A1.5 1.5 0 019 5.5v13A1.5 1.5 0 017.5 20h-2A1.5 1.5 0 014 18.5v-13zm6.5 0A1.5 1.5 0 0112 4h2a1.5 1.5 0 011.5 1.5v13A1.5 1.5 0 0114 20h-2a1.5 1.5 0 01-1.5-1.5v-13zm6.2.6a1.5 1.5 0 011.9-1l1.9.6a1.5 1.5 0 011 1.9l-3.6 11.4a1.5 1.5 0 01-1.9 1l-1.9-.6a1.5 1.5 0 01-1-1.9l3.6-11.4z"/></svg>
-          <span>Koleksi</span>
-        </button>
-      </nav>
+        <nav id="bottom-dock-pill" class="bottom-dock-pill">
+          <button class="nav-btn active" data-tab="home" type="button">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.2L3 10.5v9.8a.7.7 0 00.7.7h5.6v-6h5.4v6h5.6a.7.7 0 00.7-.7v-9.8L12 3.2z"/></svg>
+            <span>Home</span>
+          </button>
+          <button class="nav-btn" data-tab="search" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><line x1="16.65" y1="16.65" x2="21" y2="21"/></svg>
+            <span>Search</span>
+          </button>
+          <button class="nav-btn" data-tab="library" type="button">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 5.5A1.5 1.5 0 015.5 4h2A1.5 1.5 0 019 5.5v13A1.5 1.5 0 017.5 20h-2A1.5 1.5 0 014 18.5v-13zm6.5 0A1.5 1.5 0 0112 4h2a1.5 1.5 0 011.5 1.5v13A1.5 1.5 0 0114 20h-2a1.5 1.5 0 01-1.5-1.5v-13zm6.2.6a1.5 1.5 0 011.9-1l1.9.6a1.5 1.5 0 011 1.9l-3.6 11.4a1.5 1.5 0 01-1.9 1l-1.9-.6a1.5 1.5 0 01-1-1.9l3.6-11.4z"/></svg>
+            <span>Library</span>
+          </button>
+        </nav>
+      </div>
     </div>
 
     <!-- Desktop Side Live Lyrics Panel -->
     <aside id="side-lyrics-panel" class="side-lyrics-panel">
-      <div class="side-lyrics-header">
-        <div class="side-header-badge">
-          <span class="brand-dot"></span>
-          <span>Live Lyrics</span>
-        </div>
-        <button id="side-fullscreen-btn" class="side-fs-btn" type="button">Full Screen</button>
+      <div id="side-mesh-bg" class="mesh-bg">
+        <div class="mesh-layer mesh-layer-1"></div>
+        <div class="mesh-layer mesh-layer-2"></div>
+        <div class="mesh-layer mesh-layer-3"></div>
       </div>
+      <div class="mesh-scrim"></div>
 
-      <div id="side-now-card" class="side-now-card hidden">
-        <img id="side-art" src="/icon.png" alt="Cover" class="side-art" />
-        <div class="side-now-meta">
-          <div id="side-title" class="side-now-title">-</div>
-          <div id="side-artist" class="side-now-artist">-</div>
+      <div class="side-panel-inner">
+        <div class="side-lyrics-header">
+          <div class="side-header-badge">
+            <span class="eq-bars" id="side-eq-bars" aria-hidden="true"><span></span><span></span><span></span></span>
+            <span>Lyrics</span>
+          </div>
+          <button id="side-fullscreen-btn" class="side-fs-btn" type="button">Full Screen</button>
         </div>
-      </div>
 
-      <div id="side-lyrics-scroll" class="lyrics-scroll side-lyrics-scroll">
-        <div class="empty-state">
-          <div class="empty-glyph">♪</div>
-          <p>Putar lagu untuk melihat lirik tersinkronisasi</p>
+        <div id="side-now-card" class="side-now-card hidden">
+          <img id="side-art" src="/icon.png" alt="Cover" class="side-art" />
+          <div class="side-now-meta">
+            <div id="side-title" class="side-now-title">-</div>
+            <div id="side-artist" class="side-now-artist">-</div>
+          </div>
+        </div>
+
+        <div id="side-lyrics-scroll" class="lyrics-scroll side-lyrics-scroll">
+          <div class="empty-state">
+            <div class="empty-glyph">♪</div>
+            <p>Putar lagu untuk melihat animasi lirik</p>
+          </div>
         </div>
       </div>
     </aside>
   </div>
 
-  <!-- Android-Style Fullscreen Now Playing + Synced Lyrics + Queue Sheet -->
+  <!-- Fullscreen Android / Apple Music Player Sheet + Artwork Mesh Gradient -->
   <div id="player-sheet" class="player-sheet hidden" aria-hidden="true">
-    <div id="player-ambient" class="player-ambient"></div>
-    <div class="player-ambient-overlay"></div>
+    <div id="mesh-bg" class="mesh-bg">
+      <div class="mesh-layer mesh-layer-1"></div>
+      <div class="mesh-layer mesh-layer-2"></div>
+      <div class="mesh-layer mesh-layer-3"></div>
+    </div>
+    <div class="mesh-scrim"></div>
 
     <div class="player-inner">
-      <div class="drag-handle"></div>
-      <div class="sheet-top-bar">
-        <button id="close-sheet-btn" class="round-btn" type="button" aria-label="Tutup">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg>
-        </button>
-        <div class="mode-switch">
-          <button id="mode-player-btn" class="mode-pill active" type="button">Pemutar</button>
-          <button id="mode-lyrics-btn" class="mode-pill" type="button">Lirik</button>
-          <button id="mode-queue-btn" class="mode-pill" type="button">Antrean</button>
+      <button id="close-sheet-btn" class="drag-handle-btn" type="button" aria-label="Tutup pemutar">
+        <span class="drag-handle"></span>
+      </button>
+
+      <!-- Compact Mini Header shown in Lyrics / Queue Mode -->
+      <div id="sheet-compact-head" class="sheet-compact-head hidden">
+        <img id="compact-art" src="/icon.png" alt="" class="compact-art" />
+        <div class="compact-meta">
+          <div id="compact-title" class="compact-title">-</div>
+          <div id="compact-artist" class="compact-artist">-</div>
         </div>
-        <button id="sheet-fav-btn" class="round-btn" type="button" aria-label="Favorit"></button>
+        <button id="compact-fav-btn" class="round-glass-btn" type="button" aria-label="Favorit"></button>
       </div>
 
+      <!-- Mode 1: Artwork + Main Player -->
       <div id="panel-artwork" class="panel-stage active">
-        <div class="artwork-stack">
-          <div class="artwork-wrap">
-            <img id="sheet-art" src="/icon.png" alt="Album Art" class="sheet-art" />
-          </div>
-          <button id="artwork-lyric-preview" class="artwork-lyric-preview hidden" type="button"></button>
+        <div class="artwork-wrap">
+          <img id="sheet-art" src="/icon.png" alt="Album Art" class="sheet-art" />
         </div>
       </div>
 
+      <!-- Mode 2: 60fps Word-by-Word Karaoke Lyrics -->
       <div id="panel-lyrics" class="panel-stage">
         <div id="lyrics-scroll" class="lyrics-scroll">
-          <div class="empty-state"><p>Memuat lirik...</p></div>
+          <div class="empty-state"><p>Mencari lirik...</p></div>
         </div>
       </div>
 
+      <!-- Mode 3: Playing Next Queue -->
       <div id="panel-queue" class="panel-stage">
-        <div id="queue-scroll" class="queue-scroll"></div>
+        <div id="queue-scroll" class="queue-scroll clean-track-list"></div>
       </div>
 
+      <!-- Footer: Meta, Scrubber, Controls, Bottom Utility Dock -->
       <div class="sheet-footer">
-        <div class="sheet-meta">
-          <div id="sheet-title" class="sheet-title">-</div>
-          <div id="sheet-artist" class="sheet-artist">-</div>
-          <div id="sheet-status" class="sheet-status hidden"></div>
+        <div id="sheet-full-meta" class="sheet-meta-row">
+          <div class="sheet-meta-copy">
+            <div id="sheet-title" class="sheet-title">-</div>
+            <div id="sheet-artist" class="sheet-artist">-</div>
+          </div>
+          <button id="sheet-fav-btn" class="round-glass-btn" type="button" aria-label="Favorit"></button>
         </div>
+
+        <div id="sheet-status" class="sheet-status hidden"></div>
 
         <div class="scrubber-box">
-          <input id="seek-slider" type="range" min="0" max="100" step="0.2" value="0" />
+          <input id="seek-slider" type="range" min="0" max="100" step="0.1" value="0" />
           <div class="time-row">
             <span id="time-elapsed">0:00</span>
-            <span id="time-total">0:00</span>
+            <span id="time-remaining">-0:00</span>
           </div>
         </div>
 
@@ -235,6 +301,16 @@
           <button id="play-pause-btn" class="transport-main" type="button" aria-label="Play/Pause"></button>
           <button id="next-btn" class="transport-side" type="button" aria-label="Berikutnya">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5.5 6.2v11.6c0 .8.9 1.3 1.6.8l8.1-5.8a1 1 0 000-1.6L7.1 5.4c-.7-.5-1.6 0-1.6.8zm11.5-.7h1.5a.5.5 0 01.5.5v12a.5.5 0 01-.5.5H17a.5.5 0 01-.5-.5V6a.5.5 0 01.5-.5z"/></svg>
+          </button>
+        </div>
+
+        <!-- Bottom Utility Dock: Lyrics Toggle & Queue Toggle (like Apple Music / Android) -->
+        <div class="sheet-utility-dock">
+          <button id="mode-lyrics-btn" class="utility-btn" type="button" title="Lyrics" aria-label="Lyrics">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 4h14a2 2 0 012 2v10a2 2 0 01-2 2h-6l-4.5 3.6A.5.5 0 017.7 21.2V18H5a2 2 0 01-2-2V6a2 2 0 012-2zm2.5 5a1 1 0 000 2h9a1 1 0 000-2h-9zm0 4a1 1 0 000 2h6a1 1 0 000-2h-6z"/></svg>
+          </button>
+          <button id="mode-queue-btn" class="utility-btn" type="button" title="Playing Next" aria-label="Playing Next">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1.2" fill="currentColor" stroke="none"/></svg>
           </button>
         </div>
       </div>

@@ -17,27 +17,29 @@ const state = {
   queue: [],
   currentSong: null,
   lyrics: [],
+  wordTimings: [], // per-line array of { word, startMs, endMs }
   activeLyricIdx: -1,
+  sheetMode: "player", // "player" | "lyrics" | "queue"
   isPlaying: false,
   isLoadingStream: false,
   isDraggingSeek: false,
   libraryTab: "favorites",
+  rafId: 0,
 };
 
 const audio = document.getElementById("audio-el");
 
 // DOM references
-const greetingText = document.getElementById("greeting-text");
 const livePillBtn = document.getElementById("live-pill-btn");
-const liveBars = document.querySelector(".live-bars");
 const livePillText = document.getElementById("live-pill-text");
 const iosBanner = document.getElementById("ios-install-banner");
 const dismissInstallBtn = document.getElementById("dismiss-install-btn");
 
-const moodChips = document.getElementById("mood-chips");
+const topPicksRow = document.getElementById("top-picks-row");
+const moodGrid = document.getElementById("mood-grid");
 const recentsSection = document.getElementById("recents-section");
-const recentsRow = document.getElementById("recents-row");
-const quickPicksList = document.getElementById("quick-picks-list");
+const recentsPager = document.getElementById("recents-pager");
+const quickPicksPager = document.getElementById("quick-picks-pager");
 const refreshPicksBtn = document.getElementById("refresh-picks-btn");
 
 const searchForm = document.getElementById("search-form");
@@ -59,6 +61,8 @@ const miniLyricsBtn = document.getElementById("mini-lyrics-btn");
 const miniPlayBtn = document.getElementById("mini-play-btn");
 const miniNextBtn = document.getElementById("mini-next-btn");
 
+const sideMeshBg = document.getElementById("side-mesh-bg");
+const sideEqBars = document.getElementById("side-eq-bars");
 const sideNowCard = document.getElementById("side-now-card");
 const sideArt = document.getElementById("side-art");
 const sideTitle = document.getElementById("side-title");
@@ -67,16 +71,21 @@ const sideLyricsScroll = document.getElementById("side-lyrics-scroll");
 const sideFullscreenBtn = document.getElementById("side-fullscreen-btn");
 
 const playerSheet = document.getElementById("player-sheet");
+const meshBg = document.getElementById("mesh-bg");
 const closeSheetBtn = document.getElementById("close-sheet-btn");
-const playerAmbient = document.getElementById("player-ambient");
+const sheetCompactHead = document.getElementById("sheet-compact-head");
+const compactArt = document.getElementById("compact-art");
+const compactTitle = document.getElementById("compact-title");
+const compactArtist = document.getElementById("compact-artist");
+const compactFavBtn = document.getElementById("compact-fav-btn");
+const sheetFullMeta = document.getElementById("sheet-full-meta");
+
 const sheetArt = document.getElementById("sheet-art");
-const artworkLyricPreview = document.getElementById("artwork-lyric-preview");
 const sheetTitle = document.getElementById("sheet-title");
 const sheetArtist = document.getElementById("sheet-artist");
 const sheetStatus = document.getElementById("sheet-status");
 const sheetFavBtn = document.getElementById("sheet-fav-btn");
 
-const modePlayerBtn = document.getElementById("mode-player-btn");
 const modeLyricsBtn = document.getElementById("mode-lyrics-btn");
 const modeQueueBtn = document.getElementById("mode-queue-btn");
 const panelArtwork = document.getElementById("panel-artwork");
@@ -87,20 +96,12 @@ const queueScroll = document.getElementById("queue-scroll");
 
 const seekSlider = document.getElementById("seek-slider");
 const timeElapsed = document.getElementById("time-elapsed");
-const timeTotal = document.getElementById("time-total");
+const timeRemaining = document.getElementById("time-remaining");
 const prevBtn = document.getElementById("prev-btn");
 const playPauseBtn = document.getElementById("play-pause-btn");
 const nextBtn = document.getElementById("next-btn");
 
 // MARK: - Helpers
-
-function updateGreeting() {
-  const hour = new Date().getHours();
-  if (hour < 11) greetingText.textContent = "Selamat Pagi";
-  else if (hour < 15) greetingText.textContent = "Selamat Siang";
-  else if (hour < 18) greetingText.textContent = "Selamat Sore";
-  else greetingText.textContent = "Selamat Malam";
-}
 
 function loadStored(key) {
   try {
@@ -157,32 +158,43 @@ function showSheetError(msg) {
   }
 }
 
-// MARK: - Rendering
+function updateMeshBackdrop(coverUrl) {
+  const safeUrl = `url("${coverUrl || "/icon.png"}")`;
+  for (const bg of [meshBg, sideMeshBg]) {
+    if (!bg) continue;
+    bg.querySelectorAll(".mesh-layer").forEach((layer) => {
+      layer.style.backgroundImage = safeUrl;
+    });
+  }
+}
 
-function createSongRow(song, queue) {
+// MARK: - Rendering Android-Style Shelves & Rows
+
+function createTrackRow(song, queue) {
   const row = document.createElement("div");
-  row.className = "song-row" + (state.currentSong?.id === song.id ? " playing" : "");
+  row.className = "track-row" + (state.currentSong?.id === song.id ? " playing" : "");
 
-  const img = document.createElement("img");
-  img.src = song.thumbnail || "/icon.png";
-  img.alt = song.title;
-  img.loading = "lazy";
+  const thumbBox = document.createElement("div");
+  thumbBox.className = "track-thumb-box";
+  thumbBox.innerHTML = `
+    <img src="${song.thumbnail || "/icon.png"}" alt="" loading="lazy" />
+    <div class="track-playing-overlay">
+      <span class="eq-bars ${state.isPlaying ? "playing" : ""}"><span></span><span></span><span></span></span>
+    </div>
+  `;
 
   const meta = document.createElement("div");
-  meta.className = "song-row-meta";
-
+  meta.className = "track-meta";
   const title = document.createElement("div");
-  title.className = "song-row-title";
+  title.className = "track-title";
   title.textContent = song.title;
-
   const artist = document.createElement("div");
-  artist.className = "song-row-artist";
+  artist.className = "track-artist";
   artist.textContent = song.artist;
-
   meta.append(title, artist);
 
   const dur = document.createElement("span");
-  dur.className = "song-row-dur";
+  dur.className = "track-dur";
   dur.textContent = song.duration > 0 ? formatTime(song.duration) : "";
 
   const fav = document.createElement("button");
@@ -195,160 +207,307 @@ function createSongRow(song, queue) {
     toggleFavorite(song);
   });
 
-  row.append(img, meta, dur, fav);
+  row.append(thumbBox, meta, dur, fav);
   row.addEventListener("click", () => playSong(song, queue));
   return row;
 }
 
-function renderSongList(container, songs, queue, emptyMsg) {
-  container.innerHTML = "";
-  if (!songs || songs.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "empty-state";
-    empty.innerHTML = `<div class="empty-glyph">♪</div><p>${emptyMsg}</p>`;
-    container.appendChild(empty);
+function renderTopPicks() {
+  topPicksRow.innerHTML = "";
+  const picks = state.quickPicks.slice(0, 6);
+  if (picks.length === 0) {
+    topPicksRow.innerHTML = `<div class="empty-state"><p>Memuat Top Picks...</p></div>`;
     return;
   }
   const frag = document.createDocumentFragment();
-  for (const song of songs) {
-    frag.appendChild(createSongRow(song, queue));
+  picks.forEach((song, idx) => {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "hero-card";
+    card.innerHTML = `
+      <img src="${song.thumbnail || "/icon.png"}" alt="" loading="lazy" />
+      <div class="hero-card-scrim"></div>
+      <span class="hero-card-tag">${idx === 0 ? "Top Pick" : "For You"}</span>
+      <div class="hero-card-copy">
+        <div class="hero-card-title"></div>
+        <div class="hero-card-artist"></div>
+      </div>
+    `;
+    card.querySelector(".hero-card-title").textContent = song.title;
+    card.querySelector(".hero-card-artist").textContent = song.artist;
+    card.addEventListener("click", () => playSong(song, state.quickPicks));
+    frag.appendChild(card);
+  });
+  topPicksRow.appendChild(frag);
+}
+
+// 4-rows-per-column horizontal pager (matching HomeScreen.kt RecentShelf)
+function renderPagedTrackShelf(container, songs, queue, emptyMsg) {
+  container.innerHTML = "";
+  if (!songs || songs.length === 0) {
+    container.innerHTML = `<div class="empty-state"><p>${emptyMsg}</p></div>`;
+    return;
+  }
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i < songs.length; i += 4) {
+    const col = document.createElement("div");
+    col.className = "track-column";
+    for (const song of songs.slice(i, i + 4)) {
+      col.appendChild(createTrackRow(song, queue));
+    }
+    frag.appendChild(col);
   }
   container.appendChild(frag);
 }
 
-function renderRecents() {
-  if (state.recents.length === 0) {
-    recentsSection.classList.add("hidden");
+function renderFlatTrackList(container, songs, queue, emptyMsg) {
+  container.innerHTML = "";
+  if (!songs || songs.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-glyph">♪</div><p>${emptyMsg}</p></div>`;
     return;
   }
-  recentsSection.classList.remove("hidden");
-  recentsRow.innerHTML = "";
   const frag = document.createDocumentFragment();
-  for (const song of state.recents.slice(0, 12)) {
-    const card = document.createElement("button");
-    card.type = "button";
-    card.className = "recent-card" + (state.currentSong?.id === song.id ? " playing" : "");
-    card.innerHTML = `
-      <div class="recent-thumb-wrap">
-        <img src="${song.thumbnail || "/icon.png"}" alt="" loading="lazy" />
-        <span class="recent-badge">${SVG_PLAY}</span>
-      </div>
-      <div class="recent-title"></div>
-      <div class="recent-artist"></div>
-    `;
-    card.querySelector(".recent-title").textContent = song.title;
-    card.querySelector(".recent-artist").textContent = song.artist;
-    card.addEventListener("click", () => playSong(song, state.recents));
-    frag.appendChild(card);
+  for (const song of songs) {
+    frag.appendChild(createTrackRow(song, queue));
   }
-  recentsRow.appendChild(frag);
+  container.appendChild(frag);
 }
 
 function renderLibrary() {
-  libFavTab.textContent = `Favorit (${state.favorites.length})`;
-  libRecTab.textContent = `Riwayat (${state.recents.length})`;
+  libFavTab.textContent = `Favorites (${state.favorites.length})`;
+  libRecTab.textContent = `History (${state.recents.length})`;
   const list = state.libraryTab === "favorites" ? state.favorites : state.recents;
   const emptyMsg =
     state.libraryTab === "favorites" ? "Belum ada lagu favorit." : "Belum ada riwayat putar.";
-  renderSongList(libraryList, list, list, emptyMsg);
+  renderFlatTrackList(libraryList, list, list, emptyMsg);
 }
 
 function renderAllLists() {
-  renderRecents();
-  renderSongList(
-    quickPicksList,
+  renderTopPicks();
+  if (state.recents.length > 0) {
+    recentsSection.classList.remove("hidden");
+    renderPagedTrackShelf(recentsPager, state.recents.slice(0, 16), state.recents, "");
+  } else {
+    recentsSection.classList.add("hidden");
+  }
+  renderPagedTrackShelf(
+    quickPicksPager,
     state.quickPicks,
     state.quickPicks,
     "Belum ada rekomendasi. Tekan Muat Ulang."
   );
   if (state.searchResults.length > 0) {
-    renderSongList(searchResultsList, state.searchResults, state.searchResults, "");
+    renderFlatTrackList(searchResultsList, state.searchResults, state.searchResults, "");
   }
   renderLibrary();
-  renderSongList(queueScroll, state.queue, state.queue, "Antrean masih kosong.");
+  renderFlatTrackList(queueScroll, state.queue, state.queue, "Antrean masih kosong.");
+}
+
+// MARK: - 60fps Word-by-Word Karaoke Lyrics (Port of PlayerLyrics.kt)
+
+function computeWordTimings(lines) {
+  return lines.map((line, i) => {
+    if (line.timeMs < 0) return [];
+    const words = String(line.text || "").split(/\s+/).filter(Boolean);
+    if (words.length === 0) return [];
+    const startMs = line.timeMs;
+    const next = lines[i + 1];
+    let spanMs = 3400;
+    if (next && next.timeMs > startMs) {
+      spanMs = Math.min(next.timeMs - startMs, 6500);
+    }
+    // Slight breathing margin before next line
+    const usableMs = Math.max(spanMs * 0.92, 500);
+    const totalChars = words.reduce((acc, w) => acc + Math.max(w.length, 2), 0);
+    let cursor = startMs;
+    return words.map((w) => {
+      const weight = Math.max(w.length, 2) / totalChars;
+      const dur = usableMs * weight;
+      const entry = { word: w, startMs: cursor, endMs: cursor + dur };
+      cursor += dur;
+      return entry;
+    });
+  });
 }
 
 function buildLyricsFragment() {
   const frag = document.createDocumentFragment();
-  for (const line of state.lyrics) {
+
+  if (state.lyrics.length > 0 && state.lyrics[0].timeMs > 1500) {
+    const intro = document.createElement("div");
+    intro.className = "lyric-dots";
+    intro.dataset.intro = "1";
+    intro.innerHTML = "<span></span><span></span><span></span>";
+    frag.appendChild(intro);
+  }
+
+  state.lyrics.forEach((line, i) => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "lyric-line" + (line.timeMs < 0 ? " unsynced" : "");
-    btn.dataset.id = String(line.id);
-    btn.textContent = line.text;
+    btn.dataset.idx = String(i);
+
+    const wTimings = state.wordTimings[i] || [];
+    if (wTimings.length > 0) {
+      wTimings.forEach((wt, wi) => {
+        const span = document.createElement("span");
+        span.className = "lword";
+        span.dataset.w = String(wi);
+        span.textContent = wt.word;
+        btn.appendChild(span);
+      });
+    } else {
+      const span = document.createElement("span");
+      span.className = "lword";
+      span.textContent = line.text;
+      btn.appendChild(span);
+    }
+
     if (line.timeMs >= 0) {
       btn.addEventListener("click", () => {
         if (Number.isFinite(audio.duration) && audio.duration > 0) {
           audio.currentTime = line.timeMs / 1000;
+          updateKaraokeFrame(true);
         }
       });
     }
     frag.appendChild(btn);
-  }
+  });
+
   return frag;
 }
 
 function renderLyrics() {
+  state.wordTimings = computeWordTimings(state.lyrics);
   const targets = [lyricsScroll, sideLyricsScroll];
   if (!state.lyrics || state.lyrics.length === 0) {
     for (const el of targets) {
       el.innerHTML = `<div class="empty-state"><p>Lirik tidak ditemukan untuk lagu ini.</p></div>`;
     }
-    artworkLyricPreview.classList.add("hidden");
     return;
   }
-
   for (const el of targets) {
     el.innerHTML = "";
     el.appendChild(buildLyricsFragment());
   }
-
-  const firstText = state.lyrics[0]?.text;
-  if (firstText) {
-    artworkLyricPreview.textContent = firstText;
-    artworkLyricPreview.classList.remove("hidden");
-  }
-  updateActiveLyric(true);
+  updateKaraokeFrame(true);
 }
 
-function updateActiveLyric(force = false) {
-  if (!state.lyrics || state.lyrics.length === 0) return;
-  const posMs = (audio.currentTime + 0.12) * 1000;
-  let activeIdx = -1;
-  for (const line of state.lyrics) {
-    if (line.timeMs >= 0 && line.timeMs <= posMs) activeIdx = line.id;
-  }
-  if (!force && activeIdx === state.activeLyricIdx) return;
-  state.activeLyricIdx = activeIdx;
+let userScrollTimer = 0;
+function markUserScrolling(el) {
+  el.classList.add("user-scrolling");
+  clearTimeout(userScrollTimer);
+  userScrollTimer = setTimeout(() => {
+    el.classList.remove("user-scrolling");
+  }, 2400);
+}
+lyricsScroll.addEventListener("touchstart", () => markUserScrolling(lyricsScroll), { passive: true });
+lyricsScroll.addEventListener("wheel", () => markUserScrolling(lyricsScroll), { passive: true });
 
-  const lineObj = state.lyrics.find((l) => l.id === activeIdx);
-  const pillText = lineObj?.text || state.currentSong?.title || "v2.0.12";
-  livePillText.textContent = pillText;
-  miniSubtitle.textContent = lineObj?.text || state.currentSong?.artist || "";
-  if (lineObj?.text) {
-    artworkLyricPreview.textContent = lineObj.text;
-    artworkLyricPreview.classList.remove("hidden");
+function updateKaraokeFrame(forceScroll = false) {
+  if (!state.lyrics || state.lyrics.length === 0) return;
+  const posMs = (audio.currentTime + 0.08) * 1000;
+
+  let activeIdx = -1;
+  for (let i = 0; i < state.lyrics.length; i++) {
+    const t = state.lyrics[i].timeMs;
+    if (t >= 0 && t <= posMs) activeIdx = i;
   }
+
+  const lineChanged = forceScroll || activeIdx !== state.activeLyricIdx;
+  if (lineChanged) {
+    state.activeLyricIdx = activeIdx;
+    const lineObj = activeIdx >= 0 ? state.lyrics[activeIdx] : null;
+    if (lineObj?.text) {
+      livePillText.textContent = lineObj.text;
+      miniSubtitle.textContent = lineObj.text;
+    } else if (state.currentSong) {
+      livePillText.textContent = state.currentSong.title;
+      miniSubtitle.textContent = state.currentSong.artist;
+    }
+  }
+
+  const showSide = window.innerWidth >= 880;
+  const showSheetLyrics =
+    !playerSheet.classList.contains("hidden") && state.sheetMode === "lyrics";
 
   for (const container of [lyricsScroll, sideLyricsScroll]) {
-    const nodes = container.querySelectorAll(".lyric-line");
-    nodes.forEach((node) => {
-      const isMatch = Number(node.dataset.id) === activeIdx;
-      node.classList.toggle("active", isMatch);
-      if (isMatch) {
-        const isSheetOpen = !playerSheet.classList.contains("hidden") && panelLyrics.classList.contains("active");
-        if (container === sideLyricsScroll || isSheetOpen) {
+    if (container === sideLyricsScroll && !showSide) continue;
+    if (container === lyricsScroll && !showSheetLyrics) continue;
+
+    const intro = container.querySelector(".lyric-dots");
+    if (intro) {
+      intro.style.display = activeIdx < 0 ? "inline-flex" : "none";
+    }
+
+    const lineNodes = container.querySelectorAll(".lyric-line");
+    lineNodes.forEach((node) => {
+      const idx = Number(node.dataset.idx);
+      const isActive = idx === activeIdx;
+      const isPast = activeIdx >= 0 && idx < activeIdx;
+
+      if (lineChanged) {
+        node.classList.toggle("active", isActive);
+        node.classList.toggle("past", isPast);
+        node.classList.remove("dist-1", "dist-2", "dist-far");
+        if (activeIdx >= 0 && idx !== activeIdx) {
+          const dist = Math.abs(idx - activeIdx);
+          if (dist === 1) node.classList.add("dist-1");
+          else if (dist === 2) node.classList.add("dist-2");
+          else node.classList.add("dist-far");
+        }
+        if (isActive && !container.classList.contains("user-scrolling")) {
           node.scrollIntoView({ behavior: "smooth", block: "center" });
         }
+      }
+
+      // Per-word sweep on active line at 60fps
+      if (isActive) {
+        const wTimings = state.wordTimings[idx] || [];
+        const wordSpans = node.querySelectorAll(".lword");
+        wordSpans.forEach((wEl, wi) => {
+          const wt = wTimings[wi];
+          if (!wt) return;
+          if (posMs >= wt.endMs) {
+            wEl.className = "lword sung";
+            wEl.style.removeProperty("--p");
+          } else if (posMs >= wt.startMs) {
+            const pct = Math.min(100, Math.max(0, ((posMs - wt.startMs) / Math.max(wt.endMs - wt.startMs, 1)) * 100));
+            wEl.className = "lword singing";
+            wEl.style.setProperty("--p", `${pct.toFixed(1)}%`);
+          } else {
+            wEl.className = "lword";
+            wEl.style.removeProperty("--p");
+          }
+        });
+      } else if (lineChanged) {
+        node.querySelectorAll(".lword").forEach((wEl) => {
+          wEl.className = "lword";
+          wEl.style.removeProperty("--p");
+        });
       }
     });
   }
 }
 
+function startKaraokeLoop() {
+  cancelAnimationFrame(state.rafId);
+  const step = () => {
+    updateKaraokeFrame(false);
+    if (!audio.paused && !audio.ended) {
+      state.rafId = requestAnimationFrame(step);
+    }
+  };
+  state.rafId = requestAnimationFrame(step);
+}
+
 function updateSheetFav() {
   const active = state.currentSong && isFavorite(state.currentSong.id);
-  sheetFavBtn.innerHTML = active ? SVG_HEART_FILL : SVG_HEART_OUTLINE;
-  sheetFavBtn.classList.toggle("active", Boolean(active));
+  const icon = active ? SVG_HEART_FILL : SVG_HEART_OUTLINE;
+  for (const btn of [sheetFavBtn, compactFavBtn]) {
+    btn.innerHTML = icon;
+    btn.classList.toggle("active", Boolean(active));
+  }
 }
 
 function updatePlaybackUI() {
@@ -356,7 +515,10 @@ function updatePlaybackUI() {
   miniPlayBtn.innerHTML = iconHtml;
   playPauseBtn.innerHTML = iconHtml;
   sheetArt.classList.toggle("paused", !state.isPlaying);
-  liveBars.classList.toggle("playing", state.isPlaying);
+  if (sideEqBars) sideEqBars.classList.toggle("playing", state.isPlaying);
+  document.querySelectorAll(".track-row.playing .eq-bars").forEach((el) => {
+    el.classList.toggle("playing", state.isPlaying);
+  });
 }
 
 // MARK: - Playback & Media Session
@@ -388,6 +550,7 @@ async function playSong(song, queue) {
 
   state.currentSong = song;
   state.lyrics = [];
+  state.wordTimings = [];
   state.activeLyricIdx = -1;
   state.isLoadingStream = true;
   state.isPlaying = false;
@@ -395,12 +558,16 @@ async function playSong(song, queue) {
   addRecent(song);
 
   const cover = song.thumbnail || "/icon.png";
+  updateMeshBackdrop(cover);
+
+  livePillBtn.classList.remove("hidden");
+  livePillText.textContent = song.title;
+
   miniPlayer.classList.remove("hidden");
   miniProgressFill.style.width = "0%";
   miniArt.src = cover;
   miniTitle.textContent = song.title;
   miniSubtitle.textContent = song.artist;
-  livePillText.textContent = song.title;
 
   sideNowCard.classList.remove("hidden");
   sideArt.src = cover;
@@ -408,14 +575,15 @@ async function playSong(song, queue) {
   sideArtist.textContent = song.artist;
 
   sheetArt.src = cover;
-  playerAmbient.style.backgroundImage = `url("${cover}")`;
+  compactArt.src = cover;
   sheetTitle.textContent = song.title;
   sheetArtist.textContent = song.artist;
+  compactTitle.textContent = song.title;
+  compactArtist.textContent = song.artist;
   timeElapsed.textContent = "0:00";
-  timeTotal.textContent = formatTime(song.duration);
+  timeRemaining.textContent = song.duration > 0 ? `-${formatTime(song.duration)}` : "-0:00";
   seekSlider.value = "0";
   seekSlider.max = String(Math.max(song.duration || 1, 1));
-  artworkLyricPreview.classList.add("hidden");
 
   updateSheetFav();
   updatePlaybackUI();
@@ -435,6 +603,7 @@ async function playSong(song, queue) {
     state.isPlaying = true;
     state.isLoadingStream = false;
     updateMediaSession(song);
+    startKaraokeLoop();
   } catch (err) {
     state.isLoadingStream = false;
     state.isPlaying = false;
@@ -464,6 +633,7 @@ function playNext() {
 function playPrev() {
   if (audio.currentTime > 3) {
     audio.currentTime = 0;
+    updateKaraokeFrame(true);
     return;
   }
   if (!state.currentSong || state.queue.length === 0) return;
@@ -488,7 +658,10 @@ function updateMediaSession(song) {
     navigator.mediaSession.setActionHandler("nexttrack", () => playNext());
     navigator.mediaSession.setActionHandler("previoustrack", () => playPrev());
     navigator.mediaSession.setActionHandler("seekto", (details) => {
-      if (typeof details.seekTime === "number") audio.currentTime = details.seekTime;
+      if (typeof details.seekTime === "number") {
+        audio.currentTime = details.seekTime;
+        updateKaraokeFrame(true);
+      }
     });
   } catch {}
 }
@@ -500,6 +673,7 @@ audio.addEventListener("playing", () => {
   state.isLoadingStream = false;
   showSheetError("");
   updatePlaybackUI();
+  startKaraokeLoop();
 });
 
 audio.addEventListener("waiting", () => {
@@ -510,16 +684,19 @@ audio.addEventListener("waiting", () => {
 audio.addEventListener("pause", () => {
   state.isPlaying = false;
   state.isLoadingStream = false;
+  cancelAnimationFrame(state.rafId);
   updatePlaybackUI();
 });
 
 audio.addEventListener("ended", () => {
+  cancelAnimationFrame(state.rafId);
   playNext();
 });
 
 audio.addEventListener("error", () => {
   state.isPlaying = false;
   state.isLoadingStream = false;
+  cancelAnimationFrame(state.rafId);
   updatePlaybackUI();
   if (state.currentSong) {
     showSheetError("Stream gagal dimuat. Coba tap Play ulang.");
@@ -536,11 +713,11 @@ audio.addEventListener("timeupdate", () => {
     timeElapsed.textContent = formatTime(audio.currentTime);
   }
   if (dur > 0) {
-    timeTotal.textContent = formatTime(dur);
+    const rem = Math.max(0, dur - audio.currentTime);
+    timeRemaining.textContent = `-${formatTime(rem)}`;
     const pct = Math.max(0, Math.min(100, (audio.currentTime / dur) * 100));
     miniProgressFill.style.width = `${pct.toFixed(2)}%`;
   }
-  updateActiveLyric();
 });
 
 // MARK: - UI Event Wiring
@@ -555,11 +732,11 @@ document.querySelectorAll(".nav-btn").forEach((btn) => {
   });
 });
 
-moodChips.querySelectorAll(".mood-chip").forEach((chip) => {
-  chip.addEventListener("click", () => {
-    const mood = chip.dataset.mood || "all";
+moodGrid.querySelectorAll(".mood-tile").forEach((tile) => {
+  tile.addEventListener("click", () => {
+    const mood = tile.dataset.mood || "all";
     state.mood = mood;
-    moodChips.querySelectorAll(".mood-chip").forEach((c) => c.classList.toggle("active", c === chip));
+    moodGrid.querySelectorAll(".mood-tile").forEach((c) => c.classList.toggle("active", c === tile));
     loadQuickPicks(mood);
   });
 });
@@ -586,7 +763,7 @@ clearSearchBtn.addEventListener("click", () => {
   searchInput.value = "";
   clearSearchBtn.classList.add("hidden");
   state.searchResults = [];
-  searchResultsList.innerHTML = `<div class="empty-state"><div class="empty-glyph">♫</div><p>Ketik judul lagu atau nama artis lalu tekan Cari</p></div>`;
+  searchResultsList.innerHTML = `<div class="empty-state"><div class="empty-glyph">♫</div><p>Cari lagu, artis, atau penggalan lirik di YouTube Music</p></div>`;
 });
 
 searchForm.addEventListener("submit", async (e) => {
@@ -598,20 +775,25 @@ searchForm.addEventListener("submit", async (e) => {
     const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
     const data = await res.json();
     state.searchResults = Array.isArray(data.songs) ? data.songs : [];
-    renderSongList(searchResultsList, state.searchResults, state.searchResults, "Lagu tidak ditemukan.");
+    renderFlatTrackList(searchResultsList, state.searchResults, state.searchResults, "Lagu tidak ditemukan.");
   } catch {
     searchResultsList.innerHTML = `<div class="empty-state"><p>Gagal menghubungi server pencarian.</p></div>`;
   }
 });
 
 function setSheetMode(mode) {
-  modePlayerBtn.classList.toggle("active", mode === "player");
-  modeLyricsBtn.classList.toggle("active", mode === "lyrics");
-  modeQueueBtn.classList.toggle("active", mode === "queue");
-  panelArtwork.classList.toggle("active", mode === "player");
+  state.sheetMode = mode;
+  const isPlayer = mode === "player";
+  panelArtwork.classList.toggle("active", isPlayer);
   panelLyrics.classList.toggle("active", mode === "lyrics");
   panelQueue.classList.toggle("active", mode === "queue");
-  if (mode === "lyrics") updateActiveLyric(true);
+  sheetFullMeta.classList.toggle("hidden", !isPlayer);
+  sheetCompactHead.classList.toggle("hidden", isPlayer);
+  modeLyricsBtn.classList.toggle("active", mode === "lyrics");
+  modeQueueBtn.classList.toggle("active", mode === "queue");
+  if (mode === "lyrics") {
+    requestAnimationFrame(() => updateKaraokeFrame(true));
+  }
 }
 
 function openSheet(mode = "player") {
@@ -619,6 +801,9 @@ function openSheet(mode = "player") {
   setSheetMode(mode);
   playerSheet.classList.remove("hidden");
   playerSheet.setAttribute("aria-hidden", "false");
+  if (mode === "lyrics") {
+    requestAnimationFrame(() => updateKaraokeFrame(true));
+  }
 }
 
 function closeSheet() {
@@ -630,14 +815,17 @@ miniPlayerOpen.addEventListener("click", () => openSheet("player"));
 miniLyricsBtn.addEventListener("click", (e) => { e.stopPropagation(); openSheet("lyrics"); });
 livePillBtn.addEventListener("click", () => openSheet("lyrics"));
 sideFullscreenBtn.addEventListener("click", () => openSheet("lyrics"));
-artworkLyricPreview.addEventListener("click", () => setSheetMode("lyrics"));
 closeSheetBtn.addEventListener("click", closeSheet);
 
-modePlayerBtn.addEventListener("click", () => setSheetMode("player"));
-modeLyricsBtn.addEventListener("click", () => setSheetMode("lyrics"));
-modeQueueBtn.addEventListener("click", () => setSheetMode("queue"));
+modeLyricsBtn.addEventListener("click", () => {
+  setSheetMode(state.sheetMode === "lyrics" ? "player" : "lyrics");
+});
+modeQueueBtn.addEventListener("click", () => {
+  setSheetMode(state.sheetMode === "queue" ? "player" : "queue");
+});
 
 sheetFavBtn.addEventListener("click", () => toggleFavorite(state.currentSong));
+compactFavBtn.addEventListener("click", () => toggleFavorite(state.currentSong));
 miniPlayBtn.addEventListener("click", (e) => { e.stopPropagation(); togglePlayPause(); });
 miniNextBtn.addEventListener("click", (e) => { e.stopPropagation(); playNext(); });
 playPauseBtn.addEventListener("click", togglePlayPause);
@@ -652,12 +840,13 @@ seekSlider.addEventListener("input", () => {
 seekSlider.addEventListener("change", () => {
   audio.currentTime = Number(seekSlider.value);
   state.isDraggingSeek = false;
+  updateKaraokeFrame(true);
 });
 
 refreshPicksBtn.addEventListener("click", () => loadQuickPicks(state.mood));
 
 async function loadQuickPicks(mood = state.mood) {
-  quickPicksList.innerHTML = `<div class="empty-state"><p>Memuat Pilihan Cepat...</p></div>`;
+  quickPicksPager.innerHTML = `<div class="empty-state"><p>Memuat Quick Picks...</p></div>`;
   try {
     const res = await fetch(`/api/quick-picks?mood=${encodeURIComponent(mood)}`);
     const data = await res.json();
@@ -686,7 +875,6 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js").catch(() => {});
 }
 
-updateGreeting();
 updatePlaybackUI();
 updateSheetFav();
 renderAllLists();

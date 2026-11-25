@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, "public");
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = "2.0.12";
+const APP_VERSION = "2.0.13";
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",

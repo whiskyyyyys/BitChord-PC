@@ -1,4 +1,4 @@
-const CACHE_NAME = "whismuno-shell-v2.0.12";
+const CACHE_NAME = "whismuno-shell-v2.0.13";
 const SHELL_ASSETS = ["/", "/index.html", "/styles.css", "/app.js", "/manifest.webmanifest", "/icon.png"];
 
 self.addEventListener("install", (event) => {
