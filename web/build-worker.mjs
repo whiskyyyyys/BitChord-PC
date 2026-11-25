@@ -288,6 +288,7 @@ async function fetchPlayerForClient(videoId, client) {
         url: match.url,
         mimeType: match.mimeType || "audio/mp4",
         userAgent: client.userAgent,
+        contentLength: Number(match.contentLength || 0),
       };
     }
   }
@@ -301,6 +302,7 @@ async function fetchPlayerForClient(videoId, client) {
       url: mp4Audio[0].url,
       mimeType: mp4Audio[0].mimeType || "audio/mp4",
       userAgent: client.userAgent,
+      contentLength: Number(mp4Audio[0].contentLength || 0),
     };
   }
 
@@ -312,6 +314,7 @@ async function fetchPlayerForClient(videoId, client) {
       url: mp4Muxed.url,
       mimeType: "audio/mp4",
       userAgent: client.userAgent,
+      contentLength: Number(mp4Muxed.contentLength || 0),
     };
   }
 
@@ -340,12 +343,22 @@ async function resolveStream(videoId, forceRefresh = false) {
   throw lastError || new Error("Gagal mendapatkan stream audio");
 }
 
+const STREAM_CHUNK_SIZE = 1024 * 1024;
+
+function parseByteRange(rangeHeader) {
+  const m = String(rangeHeader || "").match(/bytes=(\\d+)-(\\d*)/i);
+  if (!m) return { start: 0, reqEnd: null };
+  return {
+    start: Number(m[1]),
+    reqEnd: m[2] ? Number(m[2]) : null,
+  };
+}
+
 async function handleStreamProxy(request, videoId) {
   if (!/^[a-zA-Z0-9_-]{6,20}$/.test(videoId)) {
     return jsonResponse({ error: "Invalid videoId" }, 400);
   }
 
-  const rangeHeader = request.headers.get("range");
   let resolved;
   try {
     resolved = await resolveStream(videoId, false);
@@ -353,19 +366,54 @@ async function handleStreamProxy(request, videoId) {
     return jsonResponse({ error: err?.message || "Stream resolution failed" }, 502);
   }
 
-  const forwardUpstream = (target, method) => {
+  if (request.method === "HEAD") {
+    let totalLen = resolved.contentLength || 0;
+    if (totalLen <= 0) {
+      const probe = await fetch(resolved.url, {
+        headers: { "User-Agent": resolved.userAgent, Range: "bytes=0-0" },
+      });
+      await probe.body?.cancel?.();
+      const cr = probe.headers.get("content-range") || "";
+      const m = cr.match(/\\/(\\d+)$/);
+      if (m) totalLen = Number(m[1]);
+    }
+    const headHeaders = new Headers({
+      "Content-Type": "audio/mp4",
+      "Accept-Ranges": "bytes",
+      "Cache-Control": "no-store",
+      "Access-Control-Allow-Origin": "*",
+    });
+    if (totalLen > 0) headHeaders.set("Content-Length", String(totalLen));
+    return new Response(null, { status: 200, headers: headHeaders });
+  }
+
+  const { start, reqEnd } = parseByteRange(request.headers.get("range"));
+  if (resolved.contentLength > 0 && start >= resolved.contentLength) {
+    return new Response(null, {
+      status: 416,
+      headers: {
+        "Content-Range": "bytes */" + resolved.contentLength,
+        "Access-Control-Allow-Origin": "*",
+      },
+    });
+  }
+
+  const fetchBounded = (target) => {
+    let end = reqEnd !== null ? Math.min(reqEnd, start + STREAM_CHUNK_SIZE - 1) : start + STREAM_CHUNK_SIZE - 1;
+    if (target.contentLength > 0) {
+      end = Math.min(end, target.contentLength - 1);
+    }
     const headers = new Headers();
     headers.set("User-Agent", target.userAgent);
-    if (rangeHeader) {
-      headers.set("Range", rangeHeader);
-    }
-    return fetch(target.url, { method, headers });
+    headers.set("Range", "bytes=" + start + "-" + end);
+    return fetch(target.url, { method: "GET", headers });
   };
 
-  let upstream = await forwardUpstream(resolved, request.method === "HEAD" ? "HEAD" : "GET");
+  let upstream = await fetchBounded(resolved);
   if (upstream.status === 403 || upstream.status === 404 || upstream.status === 410) {
+    await upstream.body?.cancel?.();
     resolved = await resolveStream(videoId, true);
-    upstream = await forwardUpstream(resolved, request.method === "HEAD" ? "HEAD" : "GET");
+    upstream = await fetchBounded(resolved);
   }
 
   if (!upstream.ok && upstream.status !== 206) {
@@ -383,7 +431,7 @@ async function handleStreamProxy(request, videoId) {
   const contentRange = upstream.headers.get("content-range");
   if (contentRange) outHeaders.set("Content-Range", contentRange);
 
-  return new Response(request.method === "HEAD" ? null : upstream.body, {
+  return new Response(upstream.body, {
     status: upstream.status,
     headers: outHeaders,
   });
@@ -530,6 +578,7 @@ export default {
 
       if (pathname === "/icon.png") {
         const iconRes = await fetch(ICON_SOURCE_URL, {
+          headers: { "User-Agent": "WhisMuno-PWA/2.0.11" },
           cf: { cacheTtl: 86400, cacheEverything: true },
         });
         if (!iconRes.ok) {

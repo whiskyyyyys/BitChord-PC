@@ -281,6 +281,7 @@ async function fetchPlayerForClient(videoId, client) {
         url: match.url,
         mimeType: match.mimeType || "audio/mp4",
         userAgent: client.userAgent,
+        contentLength: Number(match.contentLength || 0),
       };
     }
   }
@@ -294,6 +295,7 @@ async function fetchPlayerForClient(videoId, client) {
       url: mp4Audio[0].url,
       mimeType: mp4Audio[0].mimeType || "audio/mp4",
       userAgent: client.userAgent,
+      contentLength: Number(mp4Audio[0].contentLength || 0),
     };
   }
 
@@ -305,6 +307,7 @@ async function fetchPlayerForClient(videoId, client) {
       url: mp4Muxed.url,
       mimeType: "audio/mp4",
       userAgent: client.userAgent,
+      contentLength: Number(mp4Muxed.contentLength || 0),
     };
   }
 
@@ -333,13 +336,23 @@ async function resolveStream(videoId, forceRefresh = false) {
   throw lastError || new Error("Gagal mendapatkan stream audio");
 }
 
+const STREAM_CHUNK_SIZE = 1024 * 1024;
+
+function parseByteRange(rangeHeader) {
+  const m = String(rangeHeader || "").match(/bytes=(\d+)-(\d*)/i);
+  if (!m) return { start: 0, reqEnd: null };
+  return {
+    start: Number(m[1]),
+    reqEnd: m[2] ? Number(m[2]) : null,
+  };
+}
+
 async function handleStreamProxy(req, res, videoId) {
   if (!/^[a-zA-Z0-9_-]{6,20}$/.test(videoId)) {
     sendJson(res, 400, { error: "Invalid videoId" });
     return;
   }
 
-  const rangeHeader = req.headers.range;
   let resolved;
   try {
     resolved = await resolveStream(videoId, false);
@@ -348,20 +361,58 @@ async function handleStreamProxy(req, res, videoId) {
     return;
   }
 
-  const forwardUpstream = async (target, method) => {
-    const upstreamHeaders = {
-      "User-Agent": target.userAgent,
-    };
-    if (rangeHeader) {
-      upstreamHeaders.Range = rangeHeader;
+  if (req.method === "HEAD") {
+    let totalLen = resolved.contentLength || 0;
+    if (totalLen <= 0) {
+      const probe = await fetch(resolved.url, {
+        headers: { "User-Agent": resolved.userAgent, Range: "bytes=0-0" },
+      });
+      await probe.body?.cancel?.();
+      const cr = probe.headers.get("content-range") || "";
+      const m = cr.match(/\/(\d+)$/);
+      if (m) totalLen = Number(m[1]);
     }
-    return fetch(target.url, { method, headers: upstreamHeaders });
+    const headHeaders = {
+      "Content-Type": "audio/mp4",
+      "Accept-Ranges": "bytes",
+      "Cache-Control": "no-store",
+      "Access-Control-Allow-Origin": "*",
+    };
+    if (totalLen > 0) headHeaders["Content-Length"] = String(totalLen);
+    res.writeHead(200, headHeaders);
+    res.end();
+    return;
+  }
+
+  const { start, reqEnd } = parseByteRange(req.headers.range);
+  if (resolved.contentLength > 0 && start >= resolved.contentLength) {
+    res.writeHead(416, {
+      "Content-Range": `bytes */${resolved.contentLength}`,
+      "Access-Control-Allow-Origin": "*",
+    });
+    res.end();
+    return;
+  }
+
+  const fetchBounded = async (target) => {
+    let end = reqEnd !== null ? Math.min(reqEnd, start + STREAM_CHUNK_SIZE - 1) : start + STREAM_CHUNK_SIZE - 1;
+    if (target.contentLength > 0) {
+      end = Math.min(end, target.contentLength - 1);
+    }
+    return fetch(target.url, {
+      method: "GET",
+      headers: {
+        "User-Agent": target.userAgent,
+        Range: `bytes=${start}-${end}`,
+      },
+    });
   };
 
-  let upstream = await forwardUpstream(resolved, req.method === "HEAD" ? "HEAD" : "GET");
+  let upstream = await fetchBounded(resolved);
   if ((upstream.status === 403 || upstream.status === 404 || upstream.status === 410) && !req.headers["x-retried"]) {
+    await upstream.body?.cancel?.();
     resolved = await resolveStream(videoId, true);
-    upstream = await forwardUpstream(resolved, req.method === "HEAD" ? "HEAD" : "GET");
+    upstream = await fetchBounded(resolved);
   }
 
   if (!upstream.ok && upstream.status !== 206) {
@@ -381,7 +432,7 @@ async function handleStreamProxy(req, res, videoId) {
   if (contentRange) outHeaders["Content-Range"] = contentRange;
 
   res.writeHead(upstream.status, outHeaders);
-  if (req.method === "HEAD" || !upstream.body) {
+  if (!upstream.body) {
     res.end();
     return;
   }

@@ -40,11 +40,18 @@ button {
 
 .app-shell {
   display: flex;
-  flex-direction: column;
   height: 100dvh;
-  max-width: 680px;
+  max-width: 1180px;
   margin: 0 auto;
   background: var(--bg);
+}
+
+.left-pane {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 /* Header & Live Lyric Pill */
@@ -71,6 +78,7 @@ button {
   border-radius: 50%;
   background: linear-gradient(135deg, var(--mint), var(--aqua));
   box-shadow: 0 0 10px rgba(102, 235, 203, 0.7);
+  flex-shrink: 0;
 }
 
 .brand-title {
@@ -83,7 +91,7 @@ button {
   display: flex;
   align-items: center;
   gap: 7px;
-  max-width: 195px;
+  max-width: 210px;
   padding: 6px 12px;
   border-radius: 999px;
   background: var(--surface-elevated);
@@ -412,6 +420,7 @@ button {
   display: flex;
   align-items: center;
   gap: 11px;
+  cursor: pointer;
 }
 
 .mini-art {
@@ -445,16 +454,25 @@ button {
 .mini-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+}
+
+.mini-lyric-chip {
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--bg);
+  background: linear-gradient(135deg, var(--mint), var(--aqua));
 }
 
 .icon-btn {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: 17px;
+  font-size: 16px;
 }
 
 /* Bottom Navigation */
@@ -486,6 +504,87 @@ button {
 
 .nav-btn.active {
   color: var(--mint);
+}
+
+/* Desktop Side Live Lyrics Panel */
+.side-lyrics-panel {
+  display: none;
+  width: 390px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  background: rgba(8, 13, 24, 0.96);
+  flex-direction: column;
+  height: 100%;
+  padding: 16px 18px;
+}
+
+@media (min-width: 860px) {
+  .side-lyrics-panel {
+    display: flex;
+  }
+}
+
+.side-lyrics-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.side-header-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.side-fs-btn {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--mint);
+}
+
+.side-now-card {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px;
+  margin-bottom: 14px;
+  border-radius: 14px;
+  background: var(--surface-elevated);
+  border: 1px solid rgba(102, 235, 203, 0.22);
+}
+
+.side-art {
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.side-now-meta {
+  min-width: 0;
+}
+
+.side-now-title {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.side-now-artist {
+  font-size: 12px;
+  color: var(--mint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Fullscreen Player Sheet */
@@ -586,8 +685,16 @@ button {
   display: flex;
 }
 
+.artwork-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
 .artwork-wrap {
-  width: min(76vw, 310px);
+  width: min(72vw, 290px);
   aspect-ratio: 1;
 }
 
@@ -605,24 +712,42 @@ button {
   transform: scale(0.92);
 }
 
+.artwork-lyric-preview {
+  max-width: 92%;
+  padding: 9px 15px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(102, 235, 203, 0.25);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+}
+
 /* Synced Lyrics */
 .lyrics-scroll {
   width: 100%;
   height: 100%;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 22px 4px 64px;
+  padding: 20px 4px 64px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 15px;
+}
+
+.side-lyrics-scroll {
+  flex: 1;
+  padding: 8px 4px 48px;
 }
 
 .lyric-line {
   text-align: left;
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 600;
   line-height: 1.38;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.36);
   transition: color 0.25s ease, transform 0.25s ease, text-shadow 0.25s ease;
 }
 
@@ -631,7 +756,7 @@ button {
 }
 
 .lyric-line.active {
-  font-size: 23px;
+  font-size: 22px;
   font-weight: 800;
   color: #FFFFFF;
   text-shadow: 0 0 18px rgba(102, 235, 203, 0.48);

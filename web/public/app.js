@@ -44,13 +44,22 @@ const miniPlayerOpen = document.getElementById("mini-player-open");
 const miniArt = document.getElementById("mini-art");
 const miniTitle = document.getElementById("mini-title");
 const miniSubtitle = document.getElementById("mini-subtitle");
+const miniLyricsBtn = document.getElementById("mini-lyrics-btn");
 const miniPlayBtn = document.getElementById("mini-play-btn");
 const miniNextBtn = document.getElementById("mini-next-btn");
+
+const sideNowCard = document.getElementById("side-now-card");
+const sideArt = document.getElementById("side-art");
+const sideTitle = document.getElementById("side-title");
+const sideArtist = document.getElementById("side-artist");
+const sideLyricsScroll = document.getElementById("side-lyrics-scroll");
+const sideFullscreenBtn = document.getElementById("side-fullscreen-btn");
 
 const playerSheet = document.getElementById("player-sheet");
 const closeSheetBtn = document.getElementById("close-sheet-btn");
 const playerAmbient = document.getElementById("player-ambient");
 const sheetArt = document.getElementById("sheet-art");
+const artworkLyricPreview = document.getElementById("artwork-lyric-preview");
 const sheetTitle = document.getElementById("sheet-title");
 const sheetArtist = document.getElementById("sheet-artist");
 const sheetStatus = document.getElementById("sheet-status");
@@ -232,12 +241,7 @@ function renderAllLists() {
   renderLibrary();
 }
 
-function renderLyrics() {
-  lyricsScroll.innerHTML = "";
-  if (!state.lyrics || state.lyrics.length === 0) {
-    lyricsScroll.innerHTML = `<div class="empty-state"><p>Lirik tidak ditemukan untuk lagu ini.</p></div>`;
-    return;
-  }
+function buildLyricsFragment() {
   const frag = document.createDocumentFragment();
   for (const line of state.lyrics) {
     const btn = document.createElement("button");
@@ -254,32 +258,64 @@ function renderLyrics() {
     }
     frag.appendChild(btn);
   }
-  lyricsScroll.appendChild(frag);
+  return frag;
 }
 
-function updateActiveLyric() {
+function renderLyrics() {
+  const targets = [lyricsScroll, sideLyricsScroll];
+  if (!state.lyrics || state.lyrics.length === 0) {
+    for (const el of targets) {
+      el.innerHTML = `<div class="empty-state"><p>Lirik tidak ditemukan untuk lagu ini.</p></div>`;
+    }
+    artworkLyricPreview.classList.add("hidden");
+    return;
+  }
+
+  for (const el of targets) {
+    el.innerHTML = "";
+    el.appendChild(buildLyricsFragment());
+  }
+
+  const firstText = state.lyrics[0]?.text;
+  if (firstText) {
+    artworkLyricPreview.textContent = firstText;
+    artworkLyricPreview.classList.remove("hidden");
+  }
+  updateActiveLyric(true);
+}
+
+function updateActiveLyric(force = false) {
   if (!state.lyrics || state.lyrics.length === 0) return;
   const posMs = (audio.currentTime + 0.12) * 1000;
   let activeIdx = -1;
   for (const line of state.lyrics) {
     if (line.timeMs >= 0 && line.timeMs <= posMs) activeIdx = line.id;
   }
-  if (activeIdx === state.activeLyricIdx) return;
+  if (!force && activeIdx === state.activeLyricIdx) return;
   state.activeLyricIdx = activeIdx;
 
   const lineObj = state.lyrics.find((l) => l.id === activeIdx);
-  const pillText = lineObj?.text || state.currentSong?.title || "v2.0.10";
+  const pillText = lineObj?.text || state.currentSong?.title || "v2.0.11";
   livePillText.textContent = pillText;
   miniSubtitle.textContent = lineObj?.text || state.currentSong?.artist || "";
+  if (lineObj?.text) {
+    artworkLyricPreview.textContent = lineObj.text;
+    artworkLyricPreview.classList.remove("hidden");
+  }
 
-  const nodes = lyricsScroll.querySelectorAll(".lyric-line");
-  nodes.forEach((node) => {
-    const isMatch = Number(node.dataset.id) === activeIdx;
-    node.classList.toggle("active", isMatch);
-    if (isMatch && panelLyrics.classList.contains("active")) {
-      node.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  });
+  for (const container of [lyricsScroll, sideLyricsScroll]) {
+    const nodes = container.querySelectorAll(".lyric-line");
+    nodes.forEach((node) => {
+      const isMatch = Number(node.dataset.id) === activeIdx;
+      node.classList.toggle("active", isMatch);
+      if (isMatch) {
+        const isSheetOpen = !playerSheet.classList.contains("hidden") && panelLyrics.classList.contains("active");
+        if (container === sideLyricsScroll || isSheetOpen) {
+          node.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }
+    });
+  }
 }
 
 function updateSheetFav() {
@@ -296,6 +332,24 @@ function updatePlaybackUI() {
 }
 
 // MARK: - Playback & Media Session
+
+async function loadLyricsForSong(song) {
+  try {
+    const res = await fetch(
+      `/api/lyrics?title=${encodeURIComponent(song.title)}&artist=${encodeURIComponent(song.artist)}&duration=${encodeURIComponent(song.duration || 0)}`
+    );
+    if (res.ok && state.currentSong?.id === song.id) {
+      const data = await res.json();
+      state.lyrics = Array.isArray(data.lines) ? data.lines : [];
+      renderLyrics();
+    }
+  } catch {
+    if (state.currentSong?.id === song.id) {
+      state.lyrics = [];
+      renderLyrics();
+    }
+  }
+}
 
 async function playSong(song, queue) {
   if (Array.isArray(queue) && queue.length > 0) {
@@ -319,6 +373,11 @@ async function playSong(song, queue) {
   miniSubtitle.textContent = song.artist;
   livePillText.textContent = song.title;
 
+  sideNowCard.classList.remove("hidden");
+  sideArt.src = cover;
+  sideTitle.textContent = song.title;
+  sideArtist.textContent = song.artist;
+
   sheetArt.src = cover;
   playerAmbient.style.backgroundImage = `url("${cover}")`;
   sheetTitle.textContent = song.title;
@@ -327,13 +386,19 @@ async function playSong(song, queue) {
   timeTotal.textContent = formatTime(song.duration);
   seekSlider.value = "0";
   seekSlider.max = String(Math.max(song.duration || 1, 1));
+  artworkLyricPreview.classList.add("hidden");
 
   updateSheetFav();
   updatePlaybackUI();
   renderAllLists();
-  lyricsScroll.innerHTML = `<div class="empty-state"><p>Mencari lirik tersinkronisasi...</p></div>`;
 
-  // Point <audio> directly at our range-capable server proxy inside click handler
+  const loadingHtml = `<div class="empty-state"><p>Mencari lirik tersinkronisasi...</p></div>`;
+  lyricsScroll.innerHTML = loadingHtml;
+  sideLyricsScroll.innerHTML = loadingHtml;
+
+  // Fetch synced lyrics immediately in parallel with audio buffering
+  loadLyricsForSong(song);
+
   audio.src = `/api/stream?videoId=${encodeURIComponent(song.id)}`;
   audio.load();
 
@@ -346,22 +411,10 @@ async function playSong(song, queue) {
     state.isLoadingStream = false;
     state.isPlaying = false;
     if (err?.name !== "AbortError") {
-      showSheetError("Audio gagal diputar di browser. Coba tap Play lagi.");
+      showSheetError("Audio gagal dimuat di browser. Coba tap Play lagi.");
     }
   }
   updatePlaybackUI();
-
-  // Fetch synced lyrics concurrently
-  try {
-    const res = await fetch(
-      `/api/lyrics?title=${encodeURIComponent(song.title)}&artist=${encodeURIComponent(song.artist)}&duration=${encodeURIComponent(song.duration || 0)}`
-    );
-    if (res.ok && state.currentSong?.id === song.id) {
-      const data = await res.json();
-      state.lyrics = Array.isArray(data.lines) ? data.lines : [];
-      renderLyrics();
-    }
-  } catch {}
 }
 
 function togglePlayPause() {
@@ -510,8 +563,18 @@ searchForm.addEventListener("submit", async (e) => {
   }
 });
 
-function openSheet() {
+function setSheetMode(mode) {
+  const isLyrics = mode === "lyrics";
+  modeLyricsBtn.classList.toggle("active", isLyrics);
+  modePlayerBtn.classList.toggle("active", !isLyrics);
+  panelLyrics.classList.toggle("active", isLyrics);
+  panelArtwork.classList.toggle("active", !isLyrics);
+  if (isLyrics) updateActiveLyric(true);
+}
+
+function openSheet(mode = "player") {
   if (!state.currentSong) return;
+  setSheetMode(mode);
   playerSheet.classList.remove("hidden");
   playerSheet.setAttribute("aria-hidden", "false");
 }
@@ -521,24 +584,15 @@ function closeSheet() {
   playerSheet.setAttribute("aria-hidden", "true");
 }
 
-miniPlayerOpen.addEventListener("click", openSheet);
-livePillBtn.addEventListener("click", openSheet);
+miniPlayerOpen.addEventListener("click", () => openSheet("player"));
+miniLyricsBtn.addEventListener("click", (e) => { e.stopPropagation(); openSheet("lyrics"); });
+livePillBtn.addEventListener("click", () => openSheet("lyrics"));
+sideFullscreenBtn.addEventListener("click", () => openSheet("lyrics"));
+artworkLyricPreview.addEventListener("click", () => setSheetMode("lyrics"));
 closeSheetBtn.addEventListener("click", closeSheet);
 
-modePlayerBtn.addEventListener("click", () => {
-  modePlayerBtn.classList.add("active");
-  modeLyricsBtn.classList.remove("active");
-  panelArtwork.classList.add("active");
-  panelLyrics.classList.remove("active");
-});
-
-modeLyricsBtn.addEventListener("click", () => {
-  modeLyricsBtn.classList.add("active");
-  modePlayerBtn.classList.remove("active");
-  panelLyrics.classList.add("active");
-  panelArtwork.classList.remove("active");
-  updateActiveLyric();
-});
+modePlayerBtn.addEventListener("click", () => setSheetMode("player"));
+modeLyricsBtn.addEventListener("click", () => setSheetMode("lyrics"));
 
 sheetFavBtn.addEventListener("click", () => toggleFavorite(state.currentSong));
 miniPlayBtn.addEventListener("click", (e) => { e.stopPropagation(); togglePlayPause(); });
@@ -571,7 +625,6 @@ async function loadQuickPicks() {
   renderAllLists();
 }
 
-// Show iOS Safari Add to Home Screen banner when not standalone
 function checkIosInstallBanner() {
   const isIos = /iPhone|iPad|iPod/i.test(navigator.userAgent);
   const isStandalone = window.navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
