@@ -2,7 +2,14 @@ const FAV_KEY = "whismuno_favs_v1";
 const REC_KEY = "whismuno_recents_v1";
 const INSTALL_DISMISSED_KEY = "whismuno_install_dismissed";
 
+const SVG_PLAY = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 001.5.85l10.2-6.5a1 1 0 000-1.7L9.5 4.65A1 1 0 008 5.5z"/></svg>`;
+const SVG_PAUSE = `<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>`;
+const SVG_SPIN = `<svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><circle cx="12" cy="12" r="8" stroke-opacity="0.25"/><path d="M12 4a8 8 0 018 8" stroke-linecap="round"/></svg>`;
+const SVG_HEART_OUTLINE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20.4l-1.2-1.1C5.4 14.5 2 11.4 2 7.5A5.4 5.4 0 017.5 2c1.9 0 3.7.9 4.5 2.4C12.8 2.9 14.6 2 16.5 2A5.4 5.4 0 0122 7.5c0 3.9-3.4 7-8.8 11.8L12 20.4z"/></svg>`;
+const SVG_HEART_FILL = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.8l-1.3-1.2C5.2 14.7 1.8 11.5 1.8 7.5A5.6 5.6 0 017.5 1.9c1.9 0 3.7.9 4.5 2.3.8-1.4 2.6-2.3 4.5-2.3a5.6 5.6 0 015.7 5.6c0 4-3.4 7.2-8.9 12.1L12 20.8z"/></svg>`;
+
 const state = {
+  mood: "all",
   quickPicks: [],
   searchResults: [],
   favorites: loadStored(FAV_KEY),
@@ -20,11 +27,14 @@ const state = {
 const audio = document.getElementById("audio-el");
 
 // DOM references
+const greetingText = document.getElementById("greeting-text");
 const livePillBtn = document.getElementById("live-pill-btn");
+const liveBars = document.querySelector(".live-bars");
 const livePillText = document.getElementById("live-pill-text");
 const iosBanner = document.getElementById("ios-install-banner");
 const dismissInstallBtn = document.getElementById("dismiss-install-btn");
 
+const moodChips = document.getElementById("mood-chips");
 const recentsSection = document.getElementById("recents-section");
 const recentsRow = document.getElementById("recents-row");
 const quickPicksList = document.getElementById("quick-picks-list");
@@ -40,6 +50,7 @@ const libRecTab = document.getElementById("lib-rec-tab");
 const libraryList = document.getElementById("library-list");
 
 const miniPlayer = document.getElementById("mini-player");
+const miniProgressFill = document.getElementById("mini-progress-fill");
 const miniPlayerOpen = document.getElementById("mini-player-open");
 const miniArt = document.getElementById("mini-art");
 const miniTitle = document.getElementById("mini-title");
@@ -67,9 +78,12 @@ const sheetFavBtn = document.getElementById("sheet-fav-btn");
 
 const modePlayerBtn = document.getElementById("mode-player-btn");
 const modeLyricsBtn = document.getElementById("mode-lyrics-btn");
+const modeQueueBtn = document.getElementById("mode-queue-btn");
 const panelArtwork = document.getElementById("panel-artwork");
 const panelLyrics = document.getElementById("panel-lyrics");
+const panelQueue = document.getElementById("panel-queue");
 const lyricsScroll = document.getElementById("lyrics-scroll");
+const queueScroll = document.getElementById("queue-scroll");
 
 const seekSlider = document.getElementById("seek-slider");
 const timeElapsed = document.getElementById("time-elapsed");
@@ -79,6 +93,14 @@ const playPauseBtn = document.getElementById("play-pause-btn");
 const nextBtn = document.getElementById("next-btn");
 
 // MARK: - Helpers
+
+function updateGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 11) greetingText.textContent = "Selamat Pagi";
+  else if (hour < 15) greetingText.textContent = "Selamat Siang";
+  else if (hour < 18) greetingText.textContent = "Selamat Sore";
+  else greetingText.textContent = "Selamat Malam";
+}
 
 function loadStored(key) {
   try {
@@ -165,8 +187,9 @@ function createSongRow(song, queue) {
 
   const fav = document.createElement("button");
   fav.type = "button";
-  fav.className = "fav-btn" + (isFavorite(song.id) ? " active" : "");
-  fav.textContent = isFavorite(song.id) ? "♥" : "♡";
+  const isFav = isFavorite(song.id);
+  fav.className = "fav-btn" + (isFav ? " active" : "");
+  fav.innerHTML = isFav ? SVG_HEART_FILL : SVG_HEART_OUTLINE;
   fav.addEventListener("click", (e) => {
     e.stopPropagation();
     toggleFavorite(song);
@@ -206,7 +229,10 @@ function renderRecents() {
     card.type = "button";
     card.className = "recent-card" + (state.currentSong?.id === song.id ? " playing" : "");
     card.innerHTML = `
-      <img src="${song.thumbnail || "/icon.png"}" alt="" loading="lazy" />
+      <div class="recent-thumb-wrap">
+        <img src="${song.thumbnail || "/icon.png"}" alt="" loading="lazy" />
+        <span class="recent-badge">${SVG_PLAY}</span>
+      </div>
       <div class="recent-title"></div>
       <div class="recent-artist"></div>
     `;
@@ -239,6 +265,7 @@ function renderAllLists() {
     renderSongList(searchResultsList, state.searchResults, state.searchResults, "");
   }
   renderLibrary();
+  renderSongList(queueScroll, state.queue, state.queue, "Antrean masih kosong.");
 }
 
 function buildLyricsFragment() {
@@ -295,7 +322,7 @@ function updateActiveLyric(force = false) {
   state.activeLyricIdx = activeIdx;
 
   const lineObj = state.lyrics.find((l) => l.id === activeIdx);
-  const pillText = lineObj?.text || state.currentSong?.title || "v2.0.11";
+  const pillText = lineObj?.text || state.currentSong?.title || "v2.0.12";
   livePillText.textContent = pillText;
   miniSubtitle.textContent = lineObj?.text || state.currentSong?.artist || "";
   if (lineObj?.text) {
@@ -320,15 +347,16 @@ function updateActiveLyric(force = false) {
 
 function updateSheetFav() {
   const active = state.currentSong && isFavorite(state.currentSong.id);
-  sheetFavBtn.textContent = active ? "♥" : "♡";
+  sheetFavBtn.innerHTML = active ? SVG_HEART_FILL : SVG_HEART_OUTLINE;
   sheetFavBtn.classList.toggle("active", Boolean(active));
 }
 
 function updatePlaybackUI() {
-  const playGlyph = state.isLoadingStream ? "⏳" : state.isPlaying ? "❚❚" : "▶";
-  miniPlayBtn.textContent = playGlyph;
-  playPauseBtn.textContent = playGlyph;
+  const iconHtml = state.isLoadingStream ? SVG_SPIN : state.isPlaying ? SVG_PAUSE : SVG_PLAY;
+  miniPlayBtn.innerHTML = iconHtml;
+  playPauseBtn.innerHTML = iconHtml;
   sheetArt.classList.toggle("paused", !state.isPlaying);
+  liveBars.classList.toggle("playing", state.isPlaying);
 }
 
 // MARK: - Playback & Media Session
@@ -368,6 +396,7 @@ async function playSong(song, queue) {
 
   const cover = song.thumbnail || "/icon.png";
   miniPlayer.classList.remove("hidden");
+  miniProgressFill.style.width = "0%";
   miniArt.src = cover;
   miniTitle.textContent = song.title;
   miniSubtitle.textContent = song.artist;
@@ -396,7 +425,6 @@ async function playSong(song, queue) {
   lyricsScroll.innerHTML = loadingHtml;
   sideLyricsScroll.innerHTML = loadingHtml;
 
-  // Fetch synced lyrics immediately in parallel with audio buffering
   loadLyricsForSong(song);
 
   audio.src = `/api/stream?videoId=${encodeURIComponent(song.id)}`;
@@ -494,7 +522,7 @@ audio.addEventListener("error", () => {
   state.isLoadingStream = false;
   updatePlaybackUI();
   if (state.currentSong) {
-    showSheetError("Stream gagal dimuat. Coba lagu lain atau tap Play ulang.");
+    showSheetError("Stream gagal dimuat. Coba tap Play ulang.");
   }
 });
 
@@ -507,7 +535,11 @@ audio.addEventListener("timeupdate", () => {
     seekSlider.value = String(Math.min(audio.currentTime, dur || audio.currentTime));
     timeElapsed.textContent = formatTime(audio.currentTime);
   }
-  if (dur > 0) timeTotal.textContent = formatTime(dur);
+  if (dur > 0) {
+    timeTotal.textContent = formatTime(dur);
+    const pct = Math.max(0, Math.min(100, (audio.currentTime / dur) * 100));
+    miniProgressFill.style.width = `${pct.toFixed(2)}%`;
+  }
   updateActiveLyric();
 });
 
@@ -520,6 +552,15 @@ document.querySelectorAll(".nav-btn").forEach((btn) => {
     document.querySelectorAll(".tab-view").forEach((v) => v.classList.remove("active"));
     document.getElementById(`view-${tab}`).classList.add("active");
     if (tab === "search") searchInput.focus();
+  });
+});
+
+moodChips.querySelectorAll(".mood-chip").forEach((chip) => {
+  chip.addEventListener("click", () => {
+    const mood = chip.dataset.mood || "all";
+    state.mood = mood;
+    moodChips.querySelectorAll(".mood-chip").forEach((c) => c.classList.toggle("active", c === chip));
+    loadQuickPicks(mood);
   });
 });
 
@@ -545,7 +586,7 @@ clearSearchBtn.addEventListener("click", () => {
   searchInput.value = "";
   clearSearchBtn.classList.add("hidden");
   state.searchResults = [];
-  searchResultsList.innerHTML = `<div class="empty-state"><div class="empty-glyph">♫</div><p>Ketik judul lagu atau artis lalu tekan Cari</p></div>`;
+  searchResultsList.innerHTML = `<div class="empty-state"><div class="empty-glyph">♫</div><p>Ketik judul lagu atau nama artis lalu tekan Cari</p></div>`;
 });
 
 searchForm.addEventListener("submit", async (e) => {
@@ -564,12 +605,13 @@ searchForm.addEventListener("submit", async (e) => {
 });
 
 function setSheetMode(mode) {
-  const isLyrics = mode === "lyrics";
-  modeLyricsBtn.classList.toggle("active", isLyrics);
-  modePlayerBtn.classList.toggle("active", !isLyrics);
-  panelLyrics.classList.toggle("active", isLyrics);
-  panelArtwork.classList.toggle("active", !isLyrics);
-  if (isLyrics) updateActiveLyric(true);
+  modePlayerBtn.classList.toggle("active", mode === "player");
+  modeLyricsBtn.classList.toggle("active", mode === "lyrics");
+  modeQueueBtn.classList.toggle("active", mode === "queue");
+  panelArtwork.classList.toggle("active", mode === "player");
+  panelLyrics.classList.toggle("active", mode === "lyrics");
+  panelQueue.classList.toggle("active", mode === "queue");
+  if (mode === "lyrics") updateActiveLyric(true);
 }
 
 function openSheet(mode = "player") {
@@ -593,6 +635,7 @@ closeSheetBtn.addEventListener("click", closeSheet);
 
 modePlayerBtn.addEventListener("click", () => setSheetMode("player"));
 modeLyricsBtn.addEventListener("click", () => setSheetMode("lyrics"));
+modeQueueBtn.addEventListener("click", () => setSheetMode("queue"));
 
 sheetFavBtn.addEventListener("click", () => toggleFavorite(state.currentSong));
 miniPlayBtn.addEventListener("click", (e) => { e.stopPropagation(); togglePlayPause(); });
@@ -611,12 +654,12 @@ seekSlider.addEventListener("change", () => {
   state.isDraggingSeek = false;
 });
 
-refreshPicksBtn.addEventListener("click", loadQuickPicks);
+refreshPicksBtn.addEventListener("click", () => loadQuickPicks(state.mood));
 
-async function loadQuickPicks() {
+async function loadQuickPicks(mood = state.mood) {
   quickPicksList.innerHTML = `<div class="empty-state"><p>Memuat Pilihan Cepat...</p></div>`;
   try {
-    const res = await fetch("/api/quick-picks");
+    const res = await fetch(`/api/quick-picks?mood=${encodeURIComponent(mood)}`);
     const data = await res.json();
     state.quickPicks = Array.isArray(data.songs) ? data.songs : [];
   } catch {
@@ -643,6 +686,9 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js").catch(() => {});
 }
 
+updateGreeting();
+updatePlaybackUI();
+updateSheetFav();
 renderAllLists();
 checkIosInstallBanner();
-loadQuickPicks();
+loadQuickPicks("all");

@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, "public");
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = "2.0.10";
+const APP_VERSION = "2.0.12";
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -23,7 +23,18 @@ const MIME_TYPES = {
 };
 
 const streamCache = new Map();
-let quickPicksCache = { expiresAt: 0, songs: [] };
+const quickPicksCache = new Map();
+let visitorCache = { expiresAt: 0, value: "" };
+
+const MOOD_QUERIES = {
+  all: ["Lagu Indonesia Populer Terbaru", "Global Top Hits 2025"],
+  pop: ["Pop Indonesia Terbaru Hits", "Lagu Indonesia Viral 2025"],
+  galau: ["Lagu Galau Indonesia Terbaru", "Lagu Sedih Indonesia Populer"],
+  koplo: ["Lagu Jawa Populer Terbaru", "Musik Koplo Viral Terbaru"],
+  chill: ["Indie Indonesia Chill", "Lofi Chill Acoustic"],
+  global: ["Global Top Hits 2025", "Top Pop English Songs"],
+  remix: ["DJ Remix Viral Terbaru", "Phonk Viral Hits"],
+};
 
 function sendJson(res, status, data) {
   const payload = JSON.stringify(data);
@@ -162,12 +173,14 @@ async function searchSongs(query) {
   return results;
 }
 
-async function getQuickPicks() {
-  if (Date.now() < quickPicksCache.expiresAt && quickPicksCache.songs.length > 0) {
-    return quickPicksCache.songs;
+async function getQuickPicks(mood = "all") {
+  const key = MOOD_QUERIES[mood] ? mood : "all";
+  const cached = quickPicksCache.get(key);
+  if (cached && Date.now() < cached.expiresAt && cached.songs.length > 0) {
+    return cached.songs;
   }
 
-  const queries = ["Lagu Indonesia Populer Terbaru", "Global Top Hits 2025"];
+  const queries = MOOD_QUERIES[key];
   const settled = await Promise.allSettled(queries.map((q) => searchSongs(q)));
   const combined = [];
   const seen = new Set();
@@ -184,12 +197,36 @@ async function getQuickPicks() {
   }
 
   if (combined.length > 0) {
-    quickPicksCache = { expiresAt: Date.now() + 30 * 60_000, songs: combined };
+    quickPicksCache.set(key, { expiresAt: Date.now() + 30 * 60_000, songs: combined });
   }
   return combined;
 }
 
 // MARK: - InnerTube Audio Stream Resolver (iOS Safari MP4/AAC friendly)
+
+async function getVisitorData() {
+  if (visitorCache.value && Date.now() < visitorCache.expiresAt) {
+    return visitorCache.value;
+  }
+  try {
+    const res = await fetch("https://music.youtube.com/youtubei/v1/visitor_id?prettyPrint=false", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        context: { client: { clientName: "WEB_REMIX", clientVersion: "1.20250310.01.00" } },
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const v = data?.responseContext?.visitorData;
+      if (typeof v === "string" && v.length > 0) {
+        visitorCache = { expiresAt: Date.now() + 30 * 60_000, value: v };
+        return v;
+      }
+    }
+  } catch {}
+  return "";
+}
 
 const INNERTUBE_CLIENTS = [
   {
@@ -217,42 +254,32 @@ const INNERTUBE_CLIENTS = [
       osVersion: "18.3.2.22D82",
     },
   },
-  {
-    clientName: "ANDROID_VR",
-    clientVersion: "1.61.48",
-    headerId: "28",
-    userAgent:
-      "com.google.android.apps.youtube.vr.oculus/1.61.48 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip",
-    extra: {
-      deviceMake: "Oculus",
-      deviceModel: "Quest 3",
-      osName: "Android",
-      osVersion: "12L",
-      androidSdkVersion: 32,
-    },
-  },
 ];
 
-async function fetchPlayerForClient(videoId, client) {
+async function fetchPlayerForClient(videoId, client, visitorData) {
+  const headers = {
+    "Content-Type": "application/json",
+    "User-Agent": client.userAgent,
+    "X-YouTube-Client-Name": client.headerId,
+    "X-YouTube-Client-Version": client.clientVersion,
+    Origin: "https://www.youtube.com",
+  };
+  if (visitorData) headers["X-Goog-Visitor-Id"] = visitorData;
+
+  const clientCtx = {
+    clientName: client.clientName,
+    clientVersion: client.clientVersion,
+    hl: "en",
+    gl: "US",
+    ...client.extra,
+  };
+  if (visitorData) clientCtx.visitorData = visitorData;
+
   const response = await fetch("https://www.youtube.com/youtubei/v1/player?prettyPrint=false", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "User-Agent": client.userAgent,
-      "X-YouTube-Client-Name": client.headerId,
-      "X-YouTube-Client-Version": client.clientVersion,
-      Origin: "https://www.youtube.com",
-    },
+    headers,
     body: JSON.stringify({
-      context: {
-        client: {
-          clientName: client.clientName,
-          clientVersion: client.clientVersion,
-          hl: "en",
-          gl: "US",
-          ...client.extra,
-        },
-      },
+      context: { client: clientCtx },
       videoId,
       contentCheckOk: true,
       racyCheckOk: true,
@@ -322,10 +349,11 @@ async function resolveStream(videoId, forceRefresh = false) {
     }
   }
 
+  const visitorData = await getVisitorData();
   let lastError = null;
   for (const client of INNERTUBE_CLIENTS) {
     try {
-      const resolved = await fetchPlayerForClient(videoId, client);
+      const resolved = await fetchPlayerForClient(videoId, client, visitorData);
       const entry = { ...resolved, expiresAt: Date.now() + 20 * 60_000 };
       streamCache.set(videoId, entry);
       return entry;
@@ -336,7 +364,7 @@ async function resolveStream(videoId, forceRefresh = false) {
   throw lastError || new Error("Gagal mendapatkan stream audio");
 }
 
-const STREAM_CHUNK_SIZE = 1024 * 1024;
+const STREAM_CHUNK_SIZE = 2 * 1024 * 1024;
 
 function parseByteRange(rangeHeader) {
   const m = String(rangeHeader || "").match(/bytes=(\d+)-(\d*)/i);
@@ -592,7 +620,8 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (url.pathname === "/api/quick-picks") {
-      const songs = await getQuickPicks();
+      const mood = url.searchParams.get("mood") || "all";
+      const songs = await getQuickPicks(mood);
       sendJson(res, 200, { songs });
       return;
     }
