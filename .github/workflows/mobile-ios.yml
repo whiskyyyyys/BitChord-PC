@@ -1,0 +1,89 @@
+name: iOS mobile build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'ios/**'
+      - '.github/workflows/mobile-ios.yml'
+      - 'mobile/app/src/main/ic_launcher-playstore.png'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'ios/**'
+      - '.github/workflows/mobile-ios.yml'
+      - 'mobile/app/src/main/ic_launcher-playstore.png'
+
+permissions:
+  contents: write
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Prepare WhisMuno iOS App Icon
+        run: |
+          mkdir -p ios/WhisMuno/Assets.xcassets/AppIcon.appiconset
+          sips -s format png -z 1024 1024 \
+            mobile/app/src/main/ic_launcher-playstore.png \
+            --out ios/WhisMuno/Assets.xcassets/AppIcon.appiconset/AppIcon.png
+
+      - name: Generate Xcode project
+        run: |
+          cd ios
+          xcodegen generate
+
+      - name: Build unsigned WhisMuno iOS app
+        run: |
+          cd ios
+          xcodebuild \
+            -project WhisMuno.xcodeproj \
+            -scheme WhisMuno \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package unsigned IPA
+        run: |
+          APP_PATH="ios/build/Build/Products/Release-iphoneos/WhisMuno.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "WhisMuno.app not found at $APP_PATH"
+            find ios/build -maxdepth 5
+            exit 1
+          fi
+          rm -rf ios/ipa
+          mkdir -p ios/ipa/Payload
+          cp -R "$APP_PATH" ios/ipa/Payload/
+          (cd ios/ipa && zip -qry "../WhisMuno-iOS-2.0.10.ipa" Payload)
+          ls -lh ios/WhisMuno-iOS-2.0.10.ipa
+
+      - name: Upload iOS IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WhisMuno-iOS-IPA
+          path: ios/WhisMuno-iOS-2.0.10.ipa
+          if-no-files-found: error
+
+      - name: Publish iOS IPA to GitHub Releases
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v2.0.10-ios.${GITHUB_RUN_NUMBER}"
+          gh release create "$tag" ios/WhisMuno-iOS-2.0.10.ipa \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "WhisMuno iOS v2.0.10 (Build ${GITHUB_RUN_NUMBER})" \
+            --notes "Automated unsigned iOS build (.ipa) for WhisMuno. Install via Sideloadly, AltStore, or TrollStore."
