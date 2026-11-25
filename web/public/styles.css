@@ -76,6 +76,12 @@ svg {
 
 .tab-view.active {
   display: block;
+  animation: tabFadeIn 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes tabFadeIn {
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
 /* Large Android/Apple Music Page Header */
@@ -591,10 +597,16 @@ svg {
   border-radius: 18px;
   overflow: hidden;
   background: var(--glass);
-  backdrop-filter: blur(34px) saturate(180%);
-  -webkit-backdrop-filter: blur(34px) saturate(180%);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
   border: 1px solid var(--glass-border);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
+  animation: miniPopIn 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes miniPopIn {
+  from { opacity: 0; transform: translate3d(0, 14px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
 .mini-progress-track {
@@ -667,6 +679,12 @@ svg {
   display: grid;
   place-items: center;
   color: #ffffff;
+  transition: transform 0.14s cubic-bezier(0.22, 1, 0.36, 1), background 0.14s ease;
+}
+
+.mini-icon-btn:active {
+  transform: scale(0.88);
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .mini-icon-btn svg {
@@ -680,8 +698,8 @@ svg {
   padding: 5px;
   border-radius: 999px;
   background: var(--glass);
-  backdrop-filter: blur(34px) saturate(180%);
-  -webkit-backdrop-filter: blur(34px) saturate(180%);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
   border: 1px solid var(--glass-border);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
 }
@@ -709,7 +727,7 @@ svg {
   color: var(--accent);
 }
 
-/* Artwork Mesh Gradient Backdrop (Port of ArtworkMeshBackdrop.kt) */
+/* Lightweight Artwork Backdrop (Low-End Phone Friendly: 1 static blur + subtle radial aura) */
 .mesh-bg {
   position: absolute;
   inset: 0;
@@ -717,45 +735,30 @@ svg {
   background: #0a0a0e;
 }
 
-.mesh-layer {
+.mesh-layer-static {
   position: absolute;
-  inset: -35%;
+  inset: -12%;
   background-size: cover;
   background-position: center;
-  filter: blur(75px) saturate(165%) brightness(0.75);
-  will-change: transform;
+  filter: blur(36px) saturate(145%) brightness(0.62);
+  transform: scale(1.16);
+  opacity: 0.78;
+  transition: opacity 0.35s ease;
 }
 
-.mesh-layer-1 {
-  opacity: 0.85;
-  animation: meshDriftA 22s ease-in-out infinite alternate;
+.mesh-aura {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 22% 24%, rgba(250, 45, 72, 0.16), transparent 55%),
+    radial-gradient(circle at 80% 72%, rgba(99, 102, 241, 0.14), transparent 55%);
+  animation: auraBreathe 14s ease-in-out infinite alternate;
+  will-change: opacity;
 }
 
-.mesh-layer-2 {
-  opacity: 0.62;
-  transform: rotate(90deg) scale(1.2);
-  animation: meshDriftB 28s ease-in-out infinite alternate;
-}
-
-.mesh-layer-3 {
-  opacity: 0.45;
-  transform: rotate(-90deg) scale(1.3);
-  animation: meshDriftC 34s ease-in-out infinite alternate;
-}
-
-@keyframes meshDriftA {
-  0% { transform: translate(-6%, -4%) scale(1.15) rotate(0deg); }
-  100% { transform: translate(6%, 5%) scale(1.28) rotate(14deg); }
-}
-
-@keyframes meshDriftB {
-  0% { transform: translate(7%, -5%) scale(1.25) rotate(90deg); }
-  100% { transform: translate(-5%, 7%) scale(1.15) rotate(108deg); }
-}
-
-@keyframes meshDriftC {
-  0% { transform: translate(-4%, 6%) scale(1.3) rotate(-90deg); }
-  100% { transform: translate(5%, -6%) scale(1.18) rotate(-72deg); }
+@keyframes auraBreathe {
+  from { opacity: 0.45; }
+  to { opacity: 0.95; }
 }
 
 .mesh-scrim {
@@ -942,6 +945,11 @@ svg {
   place-items: center;
   color: #ffffff;
   flex-shrink: 0;
+  transition: transform 0.14s cubic-bezier(0.22, 1, 0.36, 1), background 0.14s ease;
+}
+
+.round-glass-btn:active {
+  transform: scale(0.88);
 }
 
 .round-glass-btn svg {
@@ -964,6 +972,76 @@ svg {
 
 .panel-stage.active {
   display: flex;
+  animation: stageIn 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes stageIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.panel-lyrics-col {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+.lyrics-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0 8px;
+  flex-shrink: 0;
+}
+
+.lyrics-badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: rgba(255, 255, 255, 0.72);
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sync-offset-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  flex-shrink: 0;
+}
+
+.sync-btn, .sync-reset-btn {
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.88);
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.sync-btn:active, .sync-reset-btn:active {
+  transform: scale(0.92);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.sync-reset-btn {
+  min-width: 44px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.sync-reset-btn.modified {
+  color: var(--accent);
 }
 
 .artwork-wrap {
@@ -1020,23 +1098,24 @@ svg {
   flex-wrap: wrap;
   column-gap: 0.27em;
   row-gap: 0.08em;
-  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), filter 0.35s ease, opacity 0.3s ease;
+  transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.24s ease;
+  transform-origin: left center;
 }
 
-.lyric-line.dist-1 { filter: blur(0.8px); }
-.lyric-line.dist-2 { filter: blur(1.7px); }
-.lyric-line.dist-far { filter: blur(2.6px); opacity: 0.72; }
-.lyrics-scroll.user-scrolling .lyric-line { filter: none !important; opacity: 1 !important; }
+.lyric-line.dist-1 { opacity: 0.46; transform: scale(0.98); }
+.lyric-line.dist-2 { opacity: 0.28; transform: scale(0.965); }
+.lyric-line.dist-far { opacity: 0.16; transform: scale(0.95); }
+.lyrics-scroll.user-scrolling .lyric-line { opacity: 0.88 !important; transform: none !important; }
 
 .lyric-line.active {
+  opacity: 1;
   transform: scale(1.03);
-  transform-origin: left center;
 }
 
 .lword {
   display: inline-block;
   color: rgba(255, 255, 255, 0.38);
-  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), text-shadow 0.2s ease, color 0.18s ease;
+  transition: transform 0.14s cubic-bezier(0.22, 1, 0.36, 1), color 0.14s ease;
 }
 
 .lyric-line.past .lword,
@@ -1052,14 +1131,13 @@ svg {
   background: linear-gradient(
     90deg,
     #ffffff var(--p, 0%),
-    rgba(255, 255, 255, 0.38) calc(var(--p, 0%) + 8%)
+    rgba(255, 255, 255, 0.38) calc(var(--p, 0%) + 6%)
   );
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
   -webkit-text-fill-color: transparent;
-  transform: translateY(-2.5px) scale(1.04);
-  filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.42));
+  transform: translate3d(0, -2px, 0) scale(1.03);
 }
 
 /* Instrumental Breathing Dots */
@@ -1160,6 +1238,11 @@ svg {
   display: grid;
   place-items: center;
   color: #ffffff;
+  transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.transport-side:active {
+  transform: scale(0.88);
 }
 
 .transport-side svg {
@@ -1173,6 +1256,11 @@ svg {
   display: grid;
   place-items: center;
   color: #ffffff;
+  transition: transform 0.14s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.transport-main:active {
+  transform: scale(0.9);
 }
 
 .transport-main svg {
@@ -1194,7 +1282,11 @@ svg {
   display: grid;
   place-items: center;
   color: rgba(255, 255, 255, 0.62);
-  transition: background 0.16s ease, color 0.16s ease;
+  transition: background 0.16s ease, color 0.16s ease, transform 0.12s ease;
+}
+
+.utility-btn:active {
+  transform: scale(0.9);
 }
 
 .utility-btn svg {
@@ -1214,4 +1306,12 @@ svg {
 @keyframes spinAnim {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

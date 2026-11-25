@@ -198,9 +198,8 @@
     <!-- Desktop Side Live Lyrics Panel -->
     <aside id="side-lyrics-panel" class="side-lyrics-panel">
       <div id="side-mesh-bg" class="mesh-bg">
-        <div class="mesh-layer mesh-layer-1"></div>
-        <div class="mesh-layer mesh-layer-2"></div>
-        <div class="mesh-layer mesh-layer-3"></div>
+        <div class="mesh-layer-static"></div>
+        <div class="mesh-aura"></div>
       </div>
       <div class="mesh-scrim"></div>
 
@@ -234,9 +233,8 @@
   <!-- Fullscreen Android / Apple Music Player Sheet + Artwork Mesh Gradient -->
   <div id="player-sheet" class="player-sheet hidden" aria-hidden="true">
     <div id="mesh-bg" class="mesh-bg">
-      <div class="mesh-layer mesh-layer-1"></div>
-      <div class="mesh-layer mesh-layer-2"></div>
-      <div class="mesh-layer mesh-layer-3"></div>
+      <div class="mesh-layer-static"></div>
+      <div class="mesh-aura"></div>
     </div>
     <div class="mesh-scrim"></div>
 
@@ -263,7 +261,15 @@
       </div>
 
       <!-- Mode 2: 60fps Word-by-Word Karaoke Lyrics -->
-      <div id="panel-lyrics" class="panel-stage">
+      <div id="panel-lyrics" class="panel-stage panel-lyrics-col">
+        <div class="lyrics-toolbar">
+          <span id="lyrics-sync-badge" class="lyrics-badge">Synced</span>
+          <div class="sync-offset-pill" aria-label="Sinkronisasi lirik">
+            <button id="sync-minus-btn" class="sync-btn" type="button" title="Mundurkan lirik 0.25 detik">−0.25s</button>
+            <button id="sync-offset-label" class="sync-reset-btn" type="button" title="Reset offset ke 0.0 detik">0.0s</button>
+            <button id="sync-plus-btn" class="sync-btn" type="button" title="Majukan lirik 0.25 detik">+0.25s</button>
+          </div>
+        </div>
         <div id="lyrics-scroll" class="lyrics-scroll">
           <div class="empty-state"><p>Mencari lirik...</p></div>
         </div>
