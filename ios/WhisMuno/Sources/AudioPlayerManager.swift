@@ -117,16 +117,13 @@ final class AudioPlayerManager: ObservableObject {
     }
 
     private func startPlayback(for song: Song) async {
+        isLoadingLyrics = true
         async let artworkFetch: UIImage? = fetchArtworkImage(for: song)
-        async let lyricsFetch: [LyricLine] = {
-            self.isLoadingLyrics = true
-            let lines = await YouTubeMusicService.shared.fetchLyrics(
-                title: song.title,
-                artist: song.artist,
-                duration: song.durationSeconds
-            )
-            return lines
-        }()
+        async let lyricsFetch: [LyricLine] = YouTubeMusicService.shared.fetchLyrics(
+            title: song.title,
+            artist: song.artist,
+            duration: song.durationSeconds
+        )
 
         do {
             let resolved = try await YouTubeMusicService.shared.resolveStreamURL(videoId: song.id)
