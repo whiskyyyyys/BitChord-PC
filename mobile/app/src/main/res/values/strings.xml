@@ -611,6 +611,11 @@
         <item quantity="other">All %1$d songs downloaded</item>
     </plurals>
     <string name="your_playlists">Your playlists</string>
+    <string name="add_cover">Add cover</string>
+    <string name="change_cover">Change cover</string>
+    <string name="remove_cover">Remove cover</string>
+    <string name="cover_updated">Cover updated</string>
+    <string name="cover_removed">Custom cover removed</string>
     <string name="who_can_see_it">Who can see it</string>
     <string name="about_artist">About the artist</string>
     <string name="recent_album">Recent Album</string>

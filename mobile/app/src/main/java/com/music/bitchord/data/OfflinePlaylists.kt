@@ -283,7 +283,7 @@ fun OfflinePlaylist.toGroup(): LocalGroup = LocalGroup(
     browseId = browseId,
     title = title,
     subtitle = "",
-    thumbnailUrl = if (isLiked) null else songs.firstNotNullOfOrNull { it.thumbnailUrl },
+    thumbnailUrl = if (isLiked) null else CustomCoverStore.coverFor(browseId) ?: songs.firstNotNullOfOrNull { it.thumbnailUrl },
     type = com.music.bitchord.data.model.BrowseType.PLAYLIST,
     songs = songs,
 )

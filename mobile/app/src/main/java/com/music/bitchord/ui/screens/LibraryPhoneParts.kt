@@ -102,6 +102,7 @@ fun libraryLinks(): List<LibraryLink> {
 fun libraryDeviceItems(downloadedReleases: List<SavedCollection>): List<ShelfItem> {
     val downloadedPlaylist = stringResource(R.string.downloaded_playlist)
     return downloadedReleases.map { release ->
+        val browseId = Downloads.pageIdFor(release.id)
         ShelfItem(
             title = release.title,
             // The credit the release was downloaded with, because this is also
@@ -111,9 +112,9 @@ fun libraryDeviceItems(downloadedReleases: List<SavedCollection>): List<ShelfIte
             // playlist" over "PLAYLIST • 12 SONGS", and the shelf this card is on
             // already says where it lives.
             subtitle = release.subtitle.ifBlank { if (release.playlist) downloadedPlaylist else "" },
-            thumbnailUrl = release.thumbnailUrl,
+            thumbnailUrl = com.music.bitchord.data.CustomCoverStore.coverFor(browseId) ?: release.thumbnailUrl,
             videoId = null,
-            browseId = Downloads.pageIdFor(release.id),
+            browseId = browseId,
         )
     }
 }

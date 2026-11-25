@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.music.bitchord.R
+import com.music.bitchord.data.CustomCoverStore
 import com.music.bitchord.data.OfflinePlaylists
 import com.music.bitchord.data.model.Song
 import com.music.bitchord.data.model.UserPlaylist
@@ -63,7 +64,8 @@ fun QueuePlaylistPicker(
 
     val choices = if (device) {
         val playlists by OfflinePlaylists.playlists.collectAsState()
-        remember(playlists, context) {
+        val customCovers by CustomCoverStore.covers.collectAsState()
+        remember(playlists, customCovers, context) {
             playlists.map { playlist ->
                 UserPlaylist(
                     playlistId = playlist.id,
@@ -71,8 +73,10 @@ fun QueuePlaylistPicker(
                     subtitle = context.resources.getQuantityString(
                         R.plurals.song_count_plural, playlist.songs.size, playlist.songs.size,
                     ),
-                    thumbnailUrl = playlist.songs.firstNotNullOfOrNull { it.thumbnailUrl }
-                        .takeUnless { playlist.isLiked },
+                    thumbnailUrl = if (playlist.isLiked) null else {
+                        CustomCoverStore.coverFor(playlist.browseId)
+                            ?: playlist.songs.firstNotNullOfOrNull { it.thumbnailUrl }
+                    },
                 )
             }
         }
@@ -100,19 +104,22 @@ fun QueuePlaylistPicker(
                 }
             }
         },
-        onCreate = { title, privacy ->
+        onCreate = { title, privacy, coverUri ->
             if (!submitted && !finished) {
                 submitted = true
                 when {
                     compatible.isEmpty() -> complete(0, 0, 0)
                     device -> {
                         // A new playlist holds each file once; a repeated queue row is already there.
-                        val created = runCatching { OfflinePlaylists.create(title, compatible) }.isSuccess
+                        val created = runCatching { OfflinePlaylists.create(title, compatible) }.getOrNull()
+                        if (created != null && coverUri != null) {
+                            viewModel.setBrowseCoverFromUri(created.browseId, coverUri)
+                        }
                         val distinct = compatible.distinctBy { it.localUri }.size
-                        if (created) complete(distinct, compatible.size - distinct, 0)
+                        if (created != null) complete(distinct, compatible.size - distinct, 0)
                         else complete(0, 0, compatible.size)
                     }
-                    else -> viewModel.createPlaylist(title, privacy, compatible, complete)
+                    else -> viewModel.createPlaylist(title, privacy, compatible, coverUri = coverUri, onResult = complete)
                 }
             }
         },

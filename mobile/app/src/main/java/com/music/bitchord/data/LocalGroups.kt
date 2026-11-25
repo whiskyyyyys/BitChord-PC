@@ -129,15 +129,16 @@ object LocalGroups {
         collections: List<DownloadedCollection>,
     ): List<LocalGroup> {
         val asked = collections.map { collection ->
+            val pageId = Downloads.pageIdFor(collection.id)
             LocalGroup(
-                browseId = Downloads.pageIdFor(collection.id),
+                browseId = pageId,
                 title = collection.title,
                 // A playlist's tracks are off forty releases, so the first
                 // one's artist is no credit for it.
                 subtitle = collection.subtitle.ifBlank {
                     if (collection.playlist) "" else collection.songs.firstOrNull()?.artist.orEmpty()
                 },
-                thumbnailUrl = collection.thumbnailUrl,
+                thumbnailUrl = CustomCoverStore.coverFor(pageId) ?: collection.thumbnailUrl,
                 type = if (collection.playlist) BrowseType.PLAYLIST else BrowseType.ALBUM,
                 songs = collection.songs,
                 downloadId = collection.id,
@@ -201,14 +202,17 @@ object LocalGroups {
         }
     }
 
-    private fun album(folderId: String, name: String, songs: List<Song>) = LocalGroup(
-        browseId = albumPageId(folderId, name),
-        title = name,
-        subtitle = songs.firstOrNull()?.artist.orEmpty(),
-        thumbnailUrl = songs.firstNotNullOfOrNull { it.thumbnailUrl },
-        type = BrowseType.ALBUM,
-        songs = songs.sortedForAlbum(),
-    )
+    private fun album(folderId: String, name: String, songs: List<Song>): LocalGroup {
+        val id = albumPageId(folderId, name)
+        return LocalGroup(
+            browseId = id,
+            title = name,
+            subtitle = songs.firstOrNull()?.artist.orEmpty(),
+            thumbnailUrl = CustomCoverStore.coverFor(id) ?: songs.firstNotNullOfOrNull { it.thumbnailUrl },
+            type = BrowseType.ALBUM,
+            songs = songs.sortedForAlbum(),
+        )
+    }
 
     private fun artist(folderId: String, name: String, songs: List<Song>) = LocalGroup(
         browseId = artistPageId(folderId, name),
@@ -219,14 +223,17 @@ object LocalGroups {
         songs = songs.sortedByTitle(),
     )
 
-    private fun folder(folderId: String, path: String, songs: List<Song>) = LocalGroup(
-        browseId = directoryPageId(folderId, path),
-        title = path.substringAfterLast('/').ifBlank { path },
-        subtitle = path.substringBeforeLast('/', "").readablePath(),
-        thumbnailUrl = songs.firstNotNullOfOrNull { it.thumbnailUrl },
-        type = BrowseType.PLAYLIST,
-        songs = songs.sortedByTitle(),
-    )
+    private fun folder(folderId: String, path: String, songs: List<Song>): LocalGroup {
+        val id = directoryPageId(folderId, path)
+        return LocalGroup(
+            browseId = id,
+            title = path.substringAfterLast('/').ifBlank { path },
+            subtitle = path.substringBeforeLast('/', "").readablePath(),
+            thumbnailUrl = CustomCoverStore.coverFor(id) ?: songs.firstNotNullOfOrNull { it.thumbnailUrl },
+            type = BrowseType.PLAYLIST,
+            songs = songs.sortedByTitle(),
+        )
+    }
 
     /** The directory a device file sits in, or null when its path isn't known. */
     private fun Song.directory(): String? =

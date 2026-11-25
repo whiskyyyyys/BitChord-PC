@@ -1,6 +1,7 @@
 package com.music.bitchord.ui
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.music.bitchord.R
@@ -12,6 +13,7 @@ import com.music.bitchord.auth.profileId
 import com.music.bitchord.auth.sessionId
 import com.music.bitchord.auth.adjacentProfile
 import com.music.bitchord.data.AppUpdateChecker
+import com.music.bitchord.data.CustomCoverStore
 import com.music.bitchord.data.LocalMediaRepository
 import com.music.bitchord.data.LikeState
 import com.music.bitchord.data.YtMusicRepository
@@ -948,7 +950,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val identity = listenerKey()
         _playlistsLoading.value = true
         viewModelScope.launch {
-            YtMusicRepository.userPlaylists().onSuccess { if (identity == listenerKey()) _playlists.value = it }
+            YtMusicRepository.userPlaylists().onSuccess { list ->
+                if (identity == listenerKey()) {
+                    _playlists.value = list.map { pl ->
+                        val custom = CustomCoverStore.coverFor(pl.browseId)
+                        if (custom != null) pl.copy(thumbnailUrl = custom) else pl
+                    }
+                }
+            }
             if (identity == listenerKey()) _playlistsLoading.value = false
         }
     }
@@ -1006,6 +1015,68 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
         _detailStack.value = _detailStack.value.map {
             if (it.browseId == playlist.browseId) it.copy(title = title) else it
+        }
+    }
+
+    /** Saves a user-picked custom image for [browseId] and updates open surfaces immediately. */
+    fun setBrowseCoverFromUri(
+        browseId: String,
+        sourceUri: Uri,
+        onDone: ((Boolean) -> Unit)? = null,
+    ) {
+        viewModelScope.launch {
+            val savedUrl = CustomCoverStore.saveCover(getApplication(), browseId, sourceUri)
+            if (savedUrl != null) {
+                applyBrowseCover(browseId, savedUrl)
+            }
+            onDone?.invoke(savedUrl != null)
+        }
+    }
+
+    /** Removes the user's custom cover for [browseId] and restores fallback artwork where known. */
+    fun clearBrowseCover(browseId: String) {
+        CustomCoverStore.removeCover(browseId)
+        val fallback = OfflinePlaylists.get(browseId)
+            ?.takeUnless { it.isLiked }
+            ?.songs
+            ?.firstNotNullOfOrNull { it.thumbnailUrl }
+            ?: com.music.bitchord.data.spotify.LocalPlaylistStore.getPlaylist(browseId)
+                ?.songs
+                ?.firstNotNullOfOrNull { it.thumbnailUrl }
+            ?: Downloads.recordIdOf(browseId)?.let { Downloads.collections.value[it]?.thumbnailUrl }
+            ?: (_detailStack.value.firstOrNull { it.browseId == browseId }?.songs as? UiState.Success)
+                ?.data
+                ?.firstNotNullOfOrNull { it.thumbnailUrl }
+        applyBrowseCover(browseId, fallback)
+        if (!browseId.startsWith("local:")) {
+            libraryStale = true
+            loadLibrary()
+            loadPlaylists()
+        }
+    }
+
+    private fun applyBrowseCover(browseId: String, coverUrl: String?) {
+        val bare = browseId.removePrefix("VL")
+        fun sameId(candidate: String?): Boolean {
+            val c = candidate ?: return false
+            return c == browseId || (!c.contains(':') && c.removePrefix("VL") == bare)
+        }
+        _playlists.value = _playlists.value.map { pl ->
+            if (sameId(pl.browseId)) pl.copy(thumbnailUrl = coverUrl) else pl
+        }
+        val currentLib = (_library.value as? UiState.Success)?.data
+        if (currentLib != null) {
+            val updatedShelves = currentLib.shelves.map { shelf ->
+                shelf.copy(
+                    items = shelf.items.map { item ->
+                        if (sameId(item.browseId)) item.copy(thumbnailUrl = coverUrl) else item
+                    },
+                )
+            }
+            _library.value = UiState.Success(currentLib.copy(shelves = updatedShelves))
+        }
+        _detailStack.value = _detailStack.value.map { page ->
+            if (sameId(page.browseId)) page.copy(thumbnailUrl = coverUrl) else page
         }
     }
 
@@ -1107,7 +1178,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * track's menu — one request, so it can't half-succeed into an empty
      * playlist the user has to add to again.
      */
-    fun createPlaylist(title: String, privacy: PlaylistPrivacy, song: Song? = null) {
+    fun createPlaylist(
+        title: String,
+        privacy: PlaylistPrivacy,
+        song: Song? = null,
+        coverUri: Uri? = null,
+    ) {
         if (!requireSignIn()) return
         val name = title.trim().ifBlank { text(R.string.new_playlist) }
         viewModelScope.launch {
@@ -1117,11 +1193,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 videoIds = listOfNotNull(song?.videoId),
             ).fold(
                 onSuccess = { playlistId ->
+                    val savedCover = coverUri?.let {
+                        CustomCoverStore.saveCover(getApplication(), "VL$playlistId", it)
+                    }
                     publishCreatedPlaylist(
                         playlistId = playlistId,
                         title = name,
                         subtitle = if (song != null) "1 song" else "",
-                        thumbnailUrl = song?.thumbnailUrl,
+                        thumbnailUrl = savedCover ?: song?.thumbnailUrl,
                     )
                 },
                 onFailure = {},
@@ -1134,6 +1213,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         title: String,
         privacy: PlaylistPrivacy,
         songs: List<Song>,
+        coverUri: Uri? = null,
         onResult: (added: Int, alreadyThere: Int, failed: Int) -> Unit,
     ) {
         if (songs.isEmpty()) {
@@ -1165,13 +1245,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     accepted.addAll(chunk.map { it.videoId })
                 }
             }
+            val savedCover = coverUri?.let {
+                CustomCoverStore.saveCover(getApplication(), "VL$playlistId", it)
+            }
             publishCreatedPlaylist(
                 playlistId = playlistId,
                 title = name,
                 subtitle = getApplication<Application>().resources.getQuantityString(
                     R.plurals.song_count_plural, accepted.size, accepted.size,
                 ),
-                thumbnailUrl = uniqueSongs.firstOrNull { it.videoId in accepted }?.thumbnailUrl,
+                thumbnailUrl = savedCover ?: uniqueSongs.firstOrNull { it.videoId in accepted }?.thumbnailUrl,
             )
             val counted = HashSet<String>()
             var added = 0
@@ -1224,6 +1307,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         privacy: PlaylistPrivacy,
         videoIds: List<String>,
         songs: List<Song> = emptyList(),
+        coverUri: Uri? = null,
         /** [savedLocally] is true when the playlist went to this device, not YouTube Music. */
         onResult: ((browseId: String?, title: String, savedLocally: Boolean) -> Unit)? = null,
     ) {
@@ -1242,13 +1326,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                                 YtMusicRepository.addToPlaylist(playlistId, chunk)
                             }
                         }
+                        val savedCover = coverUri?.let {
+                            CustomCoverStore.saveCover(getApplication(), "VL$playlistId", it)
+                        }
                         setPlaylistOwned("VL$playlistId", true)
                         libraryStale = true
                         val created = UserPlaylist(
                             playlistId = playlistId,
                             title = name,
                             subtitle = "${videoIds.size} songs",
-                            thumbnailUrl = null,
+                            thumbnailUrl = savedCover,
                         )
                         _playlists.value = listOf(created) +
                             _playlists.value.filterNot { it.playlistId == created.playlistId }
@@ -1267,11 +1354,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     },
                     onFailure = {
                         val local = com.music.bitchord.data.spotify.LocalPlaylistStore.savePlaylist(name, songs)
+                        if (coverUri != null) {
+                            CustomCoverStore.saveCover(getApplication(), local.browseId, coverUri)
+                        }
                         onResult?.invoke(local.browseId, local.title, true)
                     },
                 )
             } else {
                 val local = com.music.bitchord.data.spotify.LocalPlaylistStore.savePlaylist(name, songs)
+                if (coverUri != null) {
+                    CustomCoverStore.saveCover(getApplication(), local.browseId, coverUri)
+                }
                 onResult?.invoke(local.browseId, local.title, true)
             }
         }
@@ -1459,6 +1552,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             YtMusicRepository.deletePlaylist(playlist.playlistId).fold(
                 onSuccess = {
+                    CustomCoverStore.removeCover(playlist.browseId)
                     _playlists.value = _playlists.value
                         .filterNot { it.playlistId == playlist.playlistId }
                     // The card in the library tab, which is the surface the
@@ -2090,7 +2184,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 // a liked track past the first page still reads as liked.
                 page.likedContinuation?.let { token -> syncLikedMusic(identity, token) }
                 if (page.isEmpty) UiState.Error(text(R.string.library_empty))
-                else UiState.Success(page.copy(likedContinuation = null))
+                else {
+                    val patchedShelves = page.shelves.map { shelf ->
+                        shelf.copy(
+                            items = shelf.items.map { item ->
+                                val custom = CustomCoverStore.coverFor(item.browseId)
+                                if (custom != null) item.copy(thumbnailUrl = custom) else item
+                            },
+                        )
+                    }
+                    UiState.Success(page.copy(shelves = patchedShelves, likedContinuation = null))
+                }
             },
             onFailure = { UiState.Error(it.friendly()) },
         )
@@ -2886,11 +2990,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         val resolved = browseTypeOf(browseId, type)
+        val initialCustomCover = CustomCoverStore.coverFor(browseId)
         _detailStack.value += DetailPage(
             browseId = browseId,
             title = title,
             subtitle = subtitle,
-            thumbnailUrl = thumbnailUrl,
+            thumbnailUrl = initialCustomCover ?: thumbnailUrl,
             songs = UiState.Loading,
             type = resolved,
         )
@@ -3025,10 +3130,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 if (it.browseId == browseId &&
                     (it.songs is UiState.Loading || (onDevice.isNotEmpty() && state is UiState.Success))
                 ) {
+                    val customCover = CustomCoverStore.coverFor(browseId)
                     it.copy(
                         songs = state,
                         sections = sections,
-                        thumbnailUrl = artwork ?: it.thumbnailUrl,
+                        thumbnailUrl = customCover ?: artwork ?: it.thumbnailUrl,
                         title = name ?: it.title,
                         subtitle = credit ?: it.subtitle,
                         suggestedSongs = suggested,
@@ -3137,11 +3243,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun openLocalGroup(group: LocalGroup) {
         if (_detailStack.value.lastOrNull()?.browseId == group.browseId) return
+        val cover = CustomCoverStore.coverFor(group.browseId) ?: group.thumbnailUrl
         _detailStack.value += DetailPage(
             browseId = group.browseId,
             title = group.title,
             subtitle = group.subtitle,
-            thumbnailUrl = group.thumbnailUrl,
+            thumbnailUrl = cover,
             songs = if (group.songs.isEmpty()) UiState.Error(text(R.string.no_tracks_here)) else UiState.Success(group.songs),
             type = group.type,
         )

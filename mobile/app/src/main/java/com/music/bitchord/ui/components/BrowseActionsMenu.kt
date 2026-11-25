@@ -5,6 +5,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AddPhotoAlternate
+import androidx.compose.material.icons.rounded.HideImage
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -128,6 +131,8 @@ fun BrowseActionsMenu(
      */
     isPinned: Boolean = false,
     onTogglePin: (() -> Unit)? = null,
+    onChangeCover: (() -> Unit)? = null,
+    onRemoveCover: (() -> Unit)? = null,
     onRename: ((String) -> Unit)? = null,
     /**
      * Opens the reorder page for one of the account's own playlists — set
@@ -268,6 +273,14 @@ fun BrowseActionsMenu(
                     } else {
                         renaming = true
                     }
+                }
+            }
+            onChangeCover?.let {
+                ActionRow(Icons.Rounded.AddPhotoAlternate, stringResource(R.string.change_cover), onClick = it)
+            }
+            onRemoveCover?.let {
+                ActionRow(Icons.Rounded.HideImage, stringResource(R.string.remove_cover), onClick = it)
+            }
                 }
             }
             onReorder?.let {

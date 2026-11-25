@@ -15,6 +15,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -1024,7 +1025,8 @@ private fun BitChordApp(
     // surface that draws a heart — the player and the track menu alike.
     val offlineLiked by OfflinePlaylists.liked.collectAsStateWithLifecycle()
     val offlinePlaylists by OfflinePlaylists.playlists.collectAsStateWithLifecycle()
-    val offlinePlaylistGroups = remember(offlinePlaylists) { offlinePlaylists.map { it.toGroup() } }
+    val customCovers by com.music.bitchord.data.CustomCoverStore.covers.collectAsStateWithLifecycle()
+    val offlinePlaylistGroups = remember(offlinePlaylists, customCovers) { offlinePlaylists.map { it.toGroup() } }
     val likeStatusOf: (Song) -> LikeStatus = { song ->
         val uri = song.localUri
         when {
@@ -1061,7 +1063,7 @@ private fun BitChordApp(
     // shelf. Read off both records: the collection record is what says a
     // release was downloaded whole, and what is on disk is what says it still
     // has anything left to open.
-    val downloadedReleases = remember(savedCollections, savedDownloads) {
+    val downloadedReleases = remember(savedCollections, savedDownloads, customCovers) {
         Downloads.savedReleases()
     }
     // Playlists imported without (or instead of) a YouTube Music account live
@@ -1071,7 +1073,8 @@ private fun BitChordApp(
         ShelfItem(
             title = playlist.title,
             subtitle = stringResource(R.string.local_playlist_subtitle, playlist.songs.size),
-            thumbnailUrl = playlist.songs.firstOrNull { !it.thumbnailUrl.isNullOrBlank() }?.thumbnailUrl,
+            thumbnailUrl = com.music.bitchord.data.CustomCoverStore.coverFor(playlist.browseId)
+                ?: playlist.songs.firstOrNull { !it.thumbnailUrl.isNullOrBlank() }?.thumbnailUrl,
             videoId = null,
             browseId = playlist.browseId,
         )
@@ -1156,6 +1159,16 @@ private fun BitChordApp(
     val showQueueNotice: (String) -> Unit = { message ->
         queueNoticeId += 1
         queueNotice = QueueActionNotice(queueNoticeId, message)
+    }
+    var coverPickerBrowseId by remember { mutableStateOf<String?>(null) }
+    val coverPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        val id = coverPickerBrowseId
+        coverPickerBrowseId = null
+        if (uri != null && id != null) {
+            viewModel.setBrowseCoverFromUri(id, uri) { ok ->
+                if (ok) showQueueNotice(context.getString(R.string.cover_updated))
+            }
+        }
     }
     LaunchedEffect(queueNotice?.id) {
         val shown = queueNotice ?: return@LaunchedEffect
@@ -5234,8 +5247,8 @@ private fun BitChordApp(
                         }
                     }
                 },
-                onCreate = { title, privacy ->
-                    viewModel.createPlaylist(title, privacy, target)
+                onCreate = { title, privacy, coverUri ->
+                    viewModel.createPlaylist(title, privacy, target, coverUri)
                 },
             )
         }
@@ -5258,12 +5271,13 @@ private fun BitChordApp(
                         )
                     }
                 },
-                onCreate = { title, privacy ->
+                onCreate = { title, privacy, coverUri ->
                     viewModel.createPlaylistWithVideoIds(
                         title = title,
                         privacy = privacy,
                         videoIds = target.songs.map { it.videoId },
                         songs = target.songs,
+                        coverUri = coverUri,
                     )
                 },
             )
@@ -5279,7 +5293,7 @@ private fun BitChordApp(
                 offlinePlaylistTarget = null
                 creatingOfflinePlaylist = false
             }
-            val choices = remember(offlinePlaylists) {
+            val choices = remember(offlinePlaylists, customCovers) {
                 offlinePlaylists.map { playlist ->
                     UserPlaylist(
                         playlistId = playlist.id,
@@ -5289,8 +5303,10 @@ private fun BitChordApp(
                             playlist.songs.size,
                             playlist.songs.size,
                         ),
-                        thumbnailUrl = playlist.songs.firstNotNullOfOrNull { it.thumbnailUrl }
-                            .takeUnless { playlist.isLiked },
+                        thumbnailUrl = if (playlist.isLiked) null else {
+                            com.music.bitchord.data.CustomCoverStore.coverFor(playlist.browseId)
+                                ?: playlist.songs.firstNotNullOfOrNull { it.thumbnailUrl }
+                        },
                     )
                 }
             }
@@ -5316,8 +5332,11 @@ private fun BitChordApp(
                         )
                     }
                 },
-                onCreate = { title, _ ->
-                    OfflinePlaylists.create(title, listOfNotNull(target))
+                onCreate = { title, _, coverUri ->
+                    val created = OfflinePlaylists.create(title, listOfNotNull(target))
+                    if (coverUri != null) {
+                        viewModel.setBrowseCoverFromUri(created.browseId, coverUri)
+                    }
                     if (target != null) showQueueNotice(context.getString(R.string.song_added_to_playlist))
                 },
             )
@@ -5409,6 +5428,13 @@ private fun BitChordApp(
             // A playlist imported onto this device (signed out, or YouTube
             // refused it) is the user's to rename and delete as well.
             val importEditable = localPlaylists.firstOrNull { it.browseId == target.browseId }
+            val coverEditableId = target.browseId?.takeIf {
+                (target.type == BrowseType.PLAYLIST || target.type == BrowseType.ALBUM) &&
+                    !OfflinePlaylists.isLikedPage(it) &&
+                    it != "local:all" &&
+                    it != "local:downloads" &&
+                    it != CACHE_FOLDER_BROWSE_ID
+            }
             BrowseActionsMenu(
                 // The live answer, not the one the target was built with.
                 target = target.copy(
@@ -5524,6 +5550,22 @@ private fun BitChordApp(
                         browseActions = null
                     }
                 },
+                onChangeCover = coverEditableId?.let { id ->
+                    {
+                        browseActions = null
+                        coverPickerBrowseId = id
+                        coverPickerLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                        )
+                    }
+                },
+                onRemoveCover = coverEditableId?.takeIf { com.music.bitchord.data.CustomCoverStore.hasCover(it) }?.let { id ->
+                    {
+                        browseActions = null
+                        viewModel.clearBrowseCover(id)
+                        showQueueNotice(context.getString(R.string.cover_removed))
+                    }
+                },
                 onRename = playlist?.let { p ->
                     { name: String ->
                         browseActions = null
@@ -5580,12 +5622,14 @@ private fun BitChordApp(
                         // Its page has nothing left to show; take it away too.
                         if (detail?.browseId == p.browseId) viewModel.closeDetail()
                         OfflinePlaylists.delete(p.browseId)
+                        com.music.bitchord.data.CustomCoverStore.removeCover(p.browseId)
                     }
                 } ?: importEditable?.let { p ->
                     {
                         browseActions = null
                         if (detail?.browseId == p.browseId) viewModel.closeDetail()
                         com.music.bitchord.data.spotify.LocalPlaylistStore.deletePlaylist(p.browseId)
+                        com.music.bitchord.data.CustomCoverStore.removeCover(p.browseId)
                     }
                 },
                 onDeleteDownload = target.downloadId?.let { id ->
